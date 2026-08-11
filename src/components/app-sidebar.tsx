@@ -1,5 +1,6 @@
 "use client"
-import { ChevronDown, Folder, Search, User } from "lucide-react"
+import { BarChart3, ChevronDown, Folder, Map, Search, User } from "lucide-react"
+import { usePathname } from "next/navigation"
 import { useState } from "react"
 
 import { useMapPoints } from "@/components/map-points-provider"
@@ -26,6 +27,7 @@ import Link from "next/link"
 export function AppSidebar() {
   const [isOpen, setIsOpen] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
+  const pathname = usePathname()
   const { points, selectPoint, selectedPoint } = useMapPoints()
   const filteredClients = points.filter((client) => client.name.toLowerCase().includes(searchTerm.toLowerCase()))
 
@@ -51,6 +53,30 @@ export function AppSidebar() {
         </SidebarHeader>
 
         <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Navegação</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === "/"}>
+                    <Link href="/">
+                      <Map />
+                      <span>Mapa</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === "/insights"}>
+                    <Link href="/insights">
+                      <BarChart3 />
+                      <span>Insights</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
           <SidebarGroup>
             <SidebarGroupLabel>Pesquisar</SidebarGroupLabel>
             <SidebarGroupContent>

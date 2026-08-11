@@ -4,7 +4,8 @@
 import { Libraries, useJsApiLoader } from '@react-google-maps/api';
 import { ReactNode } from 'react';
 
-const libraries = ['places', 'drawing', 'geometry'];
+// 'geocoding' é necessária para a geocodificação reversa usada no painel de insights.
+const libraries = ['places', 'drawing', 'geometry', 'geocoding'];
 export function MapProvider({ children }: { children: ReactNode }) {
 
   const { isLoaded: scriptLoaded, loadError } = useJsApiLoader({

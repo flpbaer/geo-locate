@@ -110,6 +110,32 @@ export function usePoints() {
     }
   }, [])
 
+  const updateManyPoints = useCallback(async (updates: { id: string; data: UpdatePointData }[]) => {
+    if (updates.length === 0) return []
+
+    try {
+      const updated = await pointsUseCase.updateManyPoints(updates)
+      const byId = new Map(updated.map((point) => [point.id, point]))
+      setState((prev) => {
+        const points = prev.points.map((point) => byId.get(point.id) ?? point)
+        const filteredPoints = pointsUseCase.filterPoints(points, prev.filters)
+        return {
+          ...prev,
+          points,
+          filteredPoints,
+          selectedPoint: prev.selectedPoint ? (byId.get(prev.selectedPoint.id) ?? prev.selectedPoint) : null,
+        }
+      })
+      return updated
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        error: error instanceof Error ? error.message : "Failed to update points",
+      }))
+      throw error
+    }
+  }, [])
+
   const deletePoint = useCallback(async (id: string) => {
     setState((prev) => ({ ...prev, isLoading: true, error: null }))
     try {
@@ -238,6 +264,10 @@ export function usePoints() {
     return pointsUseCase.groupPointsByQuadrant(state.points)
   }, [state.points])
 
+  const locationInsights = useMemo(() => {
+    return pointsUseCase.buildLocationInsights(state.points)
+  }, [state.points])
+
   useEffect(() => {
     loadPoints()
   }, [])
@@ -252,10 +282,12 @@ export function usePoints() {
     regionGroups,
     categoryGroups,
     quadrantGroups,
+    locationInsights,
     loadPoints,
     createPoint,
     createMultiplePoints,
     updatePoint,
+    updateManyPoints,
     deletePoint,
     deleteAllPoints,
     searchPoints,

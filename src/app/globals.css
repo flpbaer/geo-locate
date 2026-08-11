@@ -76,6 +76,12 @@
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
   --sidebar-ring: oklch(0.704 0.04 256.788);
+
+  --viz-series-1: #2a78d6;
+  --viz-track: #eef2f7;
+  --viz-muted-mark: #c3c2b7;
+  --viz-grid: #e1e0d9;
+  --viz-ink-muted: #898781;
 }
 
 .dark {
@@ -110,6 +116,13 @@
   --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.551 0.027 264.364);
+
+  /* Passo escuro da mesma paleta — selecionado para a superfície escura, não invertido. */
+  --viz-series-1: #3987e5;
+  --viz-track: #2c2c2a;
+  --viz-muted-mark: #52514e;
+  --viz-grid: #2c2c2a;
+  --viz-ink-muted: #898781;
 }
 
 @layer base {

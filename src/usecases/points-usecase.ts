@@ -1,3 +1,5 @@
+import { getStateName, getStateRegion, normalizeCityKey, normalizeText, toStateCode } from "@/lib/br-states"
+import { findCSVColumns, parseCSVLine, valueAt } from "@/lib/csv"
 import type { Point, CreatePointData, UpdatePointData, PointFilters } from "@/types/point"
 
 export interface IPointsRepository {
@@ -5,9 +7,27 @@ export interface IPointsRepository {
   getById(id: string): Promise<Point | null>
   create(data: CreatePointData): Promise<Point>
   update(id: string, data: UpdatePointData): Promise<Point>
+  updateMany(updates: { id: string; data: UpdatePointData }[]): Promise<Point[]>
   delete(id: string): Promise<void>
   deleteAll(): Promise<void>
   search(query: string): Promise<Point[]>
+}
+
+export interface LocationStat {
+  key: string
+  label: string
+  sublabel?: string
+  count: number
+  percentage: number
+}
+
+export interface LocationInsights {
+  total: number
+  located: number
+  unlocated: number
+  states: LocationStat[]
+  cities: LocationStat[]
+  regions: LocationStat[]
 }
 
 export interface RegionGroup {
@@ -29,6 +49,7 @@ export interface IPointsUseCase {
   createPoint(data: CreatePointData): Promise<Point>
   createMultiplePoints(data: CreatePointData[]): Promise<Point[]>
   updatePoint(id: string, data: UpdatePointData): Promise<Point>
+  updateManyPoints(updates: { id: string; data: UpdatePointData }[]): Promise<Point[]>
   deletePoint(id: string): Promise<void>
   deleteAllPoints(): Promise<void>
   searchPoints(query: string): Promise<Point[]>
@@ -39,6 +60,9 @@ export interface IPointsUseCase {
   groupPointsByRegion(points: Point[], maxRegions?: number): RegionGroup[]
   groupPointsByCategory(points: Point[]): Record<string, Point[]>
   groupPointsByQuadrant(points: Point[]): Record<string, Point[]>
+  groupPointsByState(points: Point[]): Record<string, Point[]>
+  groupPointsByCity(points: Point[]): Record<string, Point[]>
+  buildLocationInsights(points: Point[]): LocationInsights
 }
 
 class InMemoryPointsRepository implements IPointsRepository {
@@ -74,6 +98,17 @@ class InMemoryPointsRepository implements IPointsRepository {
 
     this.points[index] = updatedPoint
     return updatedPoint
+  }
+
+  async updateMany(updates: { id: string; data: UpdatePointData }[]): Promise<Point[]> {
+    const byId = new Map(updates.map((update) => [update.id, update.data]))
+
+    this.points = this.points.map((point) => {
+      const data = byId.get(point.id)
+      return data ? { ...point, ...data } : point
+    })
+
+    return this.points.filter((point) => byId.has(point.id))
   }
 
   async delete(id: string): Promise<void> {
@@ -144,6 +179,11 @@ export class PointsUseCase implements IPointsUseCase {
     return this.repository.update(id, data)
   }
 
+  async updateManyPoints(updates: { id: string; data: UpdatePointData }[]): Promise<Point[]> {
+    if (updates.length === 0) return []
+    return this.repository.updateMany(updates)
+  }
+
   async deletePoint(id: string): Promise<void> {
     return this.repository.delete(id)
   }
@@ -174,6 +214,15 @@ export class PointsUseCase implements IPointsUseCase {
 
     if (filters.category) {
       filtered = filtered.filter((point) => point.category === filters.category)
+    }
+
+    if (filters.state) {
+      filtered = filtered.filter((point) => toStateCode(point.state) === toStateCode(filters.state))
+    }
+
+    if (filters.city) {
+      const cityLower = normalizeText(filters.city)
+      filtered = filtered.filter((point) => point.city && normalizeText(point.city) === cityLower)
     }
 
     if (filters.bounds) {
@@ -212,21 +261,26 @@ export class PointsUseCase implements IPointsUseCase {
   }
 
   exportPointsToCSV(points: Point[]): string {
+    const headers = ["name", "lat", "lng", "description", "category", "color", "cidade", "estado"]
+
     if (points.length === 0) {
-      return "name,lat,lng,description,category,color"
+      return headers.join(",")
     }
 
-    const headers = ["name", "lat", "lng", "description", "category", "color"]
+    const escape = (value?: string) => `"${(value || "").replace(/"/g, '""')}"`
+
     const csvContent = [
       headers.join(","),
       ...points.map((point) =>
         [
-          `"${point.name}"`,
+          escape(point.name),
           point.lat.toString(),
           point.lng.toString(),
-          `"${point.description || ""}"`,
-          `"${point.category || ""}"`,
-          `"${point.color || ""}"`,
+          escape(point.description),
+          escape(point.category),
+          escape(point.color),
+          escape(point.city),
+          escape(point.state),
         ].join(","),
       ),
     ].join("\n")
@@ -241,42 +295,40 @@ export class PointsUseCase implements IPointsUseCase {
       throw new Error("CSV must have at least a header and one data row")
     }
 
-    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
+    const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase())
+    const columns = findCSVColumns(headers)
 
-    const nameIndex = headers.findIndex((h) => h.includes("name") || h.includes("nome"))
-    const latIndex = headers.findIndex((h) => h.includes("lat"))
-    const lngIndex = headers.findIndex((h) => h.includes("lng") || h.includes("lon"))
-    const descIndex = headers.findIndex((h) => h.includes("desc") || h.includes("description"))
-    const categoryIndex = headers.findIndex((h) => h.includes("category") || h.includes("categoria"))
-    const colorIndex = headers.findIndex((h) => h.includes("color") || h.includes("cor"))
-
-    if (nameIndex === -1 || latIndex === -1 || lngIndex === -1) {
+    if (columns.name === -1 || columns.lat === -1 || columns.lng === -1) {
       throw new Error("CSV must contain name, lat, and lng columns")
     }
 
     const pointsData: CreatePointData[] = []
 
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(",").map((v) => v.trim().replace(/^"|"$/g, ""))
+      const values = parseCSVLine(lines[i])
 
       if (values.length < 3) continue
 
-      const lat = Number.parseFloat(values[latIndex])
-      const lng = Number.parseFloat(values[lngIndex])
-      const name = values[nameIndex] || `Point ${i}`
+      const lat = Number.parseFloat(values[columns.lat])
+      const lng = Number.parseFloat(values[columns.lng])
+      const name = values[columns.name] || `Point ${i}`
 
       if (isNaN(lat) || isNaN(lng)) {
         console.warn(`Row ${i + 1}: Invalid coordinates`)
         continue
       }
 
+      const state = valueAt(values, columns.state)
+
       pointsData.push({
         name,
         lat,
         lng,
-        description: descIndex >= 0 ? values[descIndex] : undefined,
-        category: categoryIndex >= 0 ? values[categoryIndex] : undefined,
-        color: colorIndex >= 0 ? values[colorIndex] : undefined,
+        description: valueAt(values, columns.description),
+        category: valueAt(values, columns.category),
+        color: valueAt(values, columns.color),
+        city: valueAt(values, columns.city),
+        state: toStateCode(state) ?? state,
       })
     }
 
@@ -431,6 +483,115 @@ export class PointsUseCase implements IPointsUseCase {
     })
 
     return quadrants
+  }
+
+  groupPointsByState(points: Point[]): Record<string, Point[]> {
+    const groups: Record<string, Point[]> = {}
+
+    points.forEach((point) => {
+      const uf = toStateCode(point.state)
+      if (!uf) return
+      if (!groups[uf]) groups[uf] = []
+      groups[uf].push(point)
+    })
+
+    return groups
+  }
+
+  groupPointsByCity(points: Point[]): Record<string, Point[]> {
+    const groups: Record<string, Point[]> = {}
+
+    points.forEach((point) => {
+      if (!point.city) return
+      const uf = toStateCode(point.state)
+      const key = uf ? `${point.city} - ${uf}` : point.city
+      if (!groups[key]) groups[key] = []
+      groups[key].push(point)
+    })
+
+    return groups
+  }
+
+  /**
+   * Consolida os rankings usados pelo painel de insights. O percentual sempre usa o
+   * total de clientes (e não o total localizado), para que a soma reflita a base real.
+   */
+  buildLocationInsights(points: Point[]): LocationInsights {
+    const total = points.length
+    const percentageOf = (count: number) => (total > 0 ? (count / total) * 100 : 0)
+
+    const stateCounts = new Map<string, number>()
+    const regionCounts = new Map<string, number>()
+    const cityCounts = new Map<string, { label: string; sublabel?: string; count: number }>()
+    let located = 0
+
+    points.forEach((point) => {
+      const uf = toStateCode(point.state)
+      const hasCity = Boolean(point.city)
+
+      if (uf || hasCity) located++
+
+      if (uf) {
+        stateCounts.set(uf, (stateCounts.get(uf) ?? 0) + 1)
+        const region = getStateRegion(uf)
+        if (region) regionCounts.set(region, (regionCounts.get(region) ?? 0) + 1)
+      }
+
+      if (point.city) {
+        const key = normalizeCityKey(point.city, uf)
+        const existing = cityCounts.get(key)
+        if (existing) {
+          existing.count++
+        } else {
+          cityCounts.set(key, {
+            label: point.city,
+            sublabel: uf ? getStateName(uf) : undefined,
+            count: 1,
+          })
+        }
+      }
+    })
+
+    const byCountDesc = (a: LocationStat, b: LocationStat) =>
+      b.count - a.count || a.label.localeCompare(b.label, "pt-BR")
+
+    const states: LocationStat[] = Array.from(stateCounts.entries())
+      .map(([uf, count]) => ({
+        key: uf,
+        label: getStateName(uf),
+        sublabel: uf,
+        count,
+        percentage: percentageOf(count),
+      }))
+      .sort(byCountDesc)
+
+    const cities: LocationStat[] = Array.from(cityCounts.entries())
+      .map(([key, city]) => ({
+        key,
+        label: city.label,
+        sublabel: city.sublabel,
+        count: city.count,
+        percentage: percentageOf(city.count),
+      }))
+      .sort(byCountDesc)
+
+    const regions: LocationStat[] = Array.from(regionCounts.entries())
+      .map(([region, count]) => ({
+        key: region,
+        label: region,
+        count,
+        percentage: percentageOf(count),
+      }))
+      .sort(byCountDesc)
+
+    return {
+      total,
+      located,
+      unlocated: total - located,
+      states,
+      cities,
+      regions,
+    }
   }
 
   private calculateDistance(point: Point, center: { lat: number; lng: number }): number {

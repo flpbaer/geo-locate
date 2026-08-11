@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { toStateCode } from "@/lib/br-states"
+import { findCSVColumns, parseCSVLine, valueAt } from "@/lib/csv"
 import type { CreatePointData, Point } from "@/types/point"
 
 interface ImportCSVDialogProps {
@@ -34,6 +36,8 @@ interface PreviewPoint {
   description?: string
   category?: string
   color?: string
+  city?: string
+  state?: string
 }
 
 type ImportMode = "concatenate" | "overwrite" | null
@@ -86,14 +90,10 @@ export function ImportCSVDialog({ open, onOpenChange }: ImportCSVDialogProps) {
       if (lines.length < 2) {
         throw new Error("O arquivo CSV deve ter pelo menos um cabeçalho e uma linha de dados")
       }
-      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
-      const requiredColumns = ["lat", "lng", "name"]
-      const missingColumns = requiredColumns.filter(
-        (col) =>
-          !headers.some(
-            (h) => h.includes(col) || h.includes(col.replace("lat", "latitude").replace("lng", "longitude")),
-          ),
-      )
+      const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase())
+      const columns = findCSVColumns(headers)
+
+      const missingColumns = (["name", "lat", "lng"] as const).filter((column) => columns[column] === -1)
 
       if (missingColumns.length > 0) {
         throw new Error(
@@ -101,23 +101,16 @@ export function ImportCSVDialog({ open, onOpenChange }: ImportCSVDialogProps) {
         )
       }
 
-      const nameIndex = headers.findIndex((h) => h.includes("name") || h.includes("nome"))
-      const latIndex = headers.findIndex((h) => h.includes("lat"))
-      const lngIndex = headers.findIndex((h) => h.includes("lng") || h.includes("lon"))
-      const descIndex = headers.findIndex((h) => h.includes("desc") || h.includes("description"))
-      const categoryIndex = headers.findIndex((h) => h.includes("category") || h.includes("categoria"))
-      const colorIndex = headers.findIndex((h) => h.includes("color") || h.includes("cor"))
-
       const newPoints: PreviewPoint[] = []
 
       for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(",").map((v) => v.trim())
+        const values = parseCSVLine(lines[i])
 
         if (values.length < 3) continue
 
-        const lat = Number.parseFloat(values[latIndex])
-        const lng = Number.parseFloat(values[lngIndex])
-        const name = values[nameIndex] || `Ponto ${i}`
+        const lat = Number.parseFloat(values[columns.lat])
+        const lng = Number.parseFloat(values[columns.lng])
+        const name = values[columns.name] || `Ponto ${i}`
 
         if (isNaN(lat) || isNaN(lng)) {
           console.warn(`Linha ${i + 1}: Coordenadas inválidas`)
@@ -129,14 +122,18 @@ export function ImportCSVDialog({ open, onOpenChange }: ImportCSVDialogProps) {
           continue
         }
 
+        const state = valueAt(values, columns.state)
+
         newPoints.push({
           id: `preview-${i}`,
           name,
           lat,
           lng,
-          description: descIndex >= 0 ? values[descIndex] : undefined,
-          category: categoryIndex >= 0 ? values[categoryIndex] : undefined,
-          color: colorIndex >= 0 ? values[colorIndex] : undefined,
+          description: valueAt(values, columns.description),
+          category: valueAt(values, columns.category),
+          color: valueAt(values, columns.color),
+          city: valueAt(values, columns.city),
+          state: toStateCode(state) ?? state,
         })
       }
 
@@ -189,6 +186,8 @@ export function ImportCSVDialog({ open, onOpenChange }: ImportCSVDialogProps) {
         description: point.description,
         category: point.category,
         color: point.color,
+        city: point.city,
+        state: point.state,
       }))
 
       if (mode === "overwrite") {
@@ -338,8 +337,10 @@ export function ImportCSVDialog({ open, onOpenChange }: ImportCSVDialogProps) {
                       <div key={point.id} className="flex items-center gap-2 py-1 text-sm">
                         <MapPin className="h-3 w-3 text-blue-500 flex-shrink-0" />
                         <span className="font-medium truncate">{point.name}</span>
-                        <span className="text-xs text-muted-foreground ml-auto">
-                          {point.lat.toFixed(4)}, {point.lng.toFixed(4)}
+                        <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
+                          {point.city
+                            ? `${point.city}${point.state ? ` - ${point.state}` : ""}`
+                            : `${point.lat.toFixed(4)}, ${point.lng.toFixed(4)}`}
                         </span>
                       </div>
                     ))}
@@ -407,7 +408,9 @@ export function ImportCSVDialog({ open, onOpenChange }: ImportCSVDialogProps) {
 
         <DialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-2">
           <div className="text-xs text-muted-foreground mb-4 sm:mb-0">
-            {importStep === "upload" && <p>Formato esperado: name, lat, lng, description, category, color</p>}
+            {importStep === "upload" && (
+              <p>Formato esperado: name, lat, lng, description, category, color, cidade, estado</p>
+            )}
             {importStep === "preview" && <p>{previewPoints.length} pontos encontrados no arquivo</p>}
             {importStep === "confirm" && (
               <p>

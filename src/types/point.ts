@@ -6,8 +6,10 @@ export interface Point {
     description?: string
     category?: string
     color?: string
+    city?: string
+    state?: string
   }
-  
+
   export interface CreatePointData {
     name: string
     lat: number
@@ -15,8 +17,10 @@ export interface Point {
     description?: string
     category?: string
     color?: string
+    city?: string
+    state?: string
   }
-  
+
   export interface UpdatePointData {
     name?: string
     lat?: number
@@ -24,11 +28,15 @@ export interface Point {
     description?: string
     category?: string
     color?: string
+    city?: string
+    state?: string
   }
-  
+
   export interface PointFilters {
     search?: string
     category?: string
+    state?: string
+    city?: string
     bounds?: {
       north: number
       south: number
@@ -36,7 +44,7 @@ export interface Point {
       west: number
     }
   }
-  
+
   export interface PointsState {
     points: Point[]
     filteredPoints: Point[]
@@ -45,4 +53,3 @@ export interface Point {
     isLoading: boolean
     error: string | null
   }
-  

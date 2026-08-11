@@ -4,7 +4,7 @@ import type React from "react"
 import { createContext, useContext } from "react"
 import { usePoints } from "@/hooks/use-points"
 import type { Point, CreatePointData, UpdatePointData, PointFilters } from "@/types/point"
-import type { RegionGroup } from "@/usecases/points-usecase"
+import type { LocationInsights, RegionGroup } from "@/usecases/points-usecase"
 
 interface MapPointsContextType {
   points: Point[]
@@ -16,10 +16,12 @@ interface MapPointsContextType {
   regionGroups: RegionGroup[]
   categoryGroups: Record<string, Point[]>
   quadrantGroups: Record<string, Point[]>
+  locationInsights: LocationInsights
   loadPoints: () => Promise<void>
   createPoint: (data: CreatePointData) => Promise<Point>
   createMultiplePoints: (data: CreatePointData[]) => Promise<Point[]>
   updatePoint: (id: string, data: UpdatePointData) => Promise<Point>
+  updateManyPoints: (updates: { id: string; data: UpdatePointData }[]) => Promise<Point[]>
   deletePoint: (id: string) => Promise<void>
   deleteAllPoints: () => Promise<void>
   searchPoints: (query: string) => Promise<void>
@@ -65,10 +67,12 @@ export function MapPointsProvider({ children }: { children: React.ReactNode }) {
     regionGroups: pointsHook.regionGroups,
     categoryGroups: pointsHook.categoryGroups,
     quadrantGroups: pointsHook.quadrantGroups,
+    locationInsights: pointsHook.locationInsights,
     loadPoints: pointsHook.loadPoints,
     createPoint: pointsHook.createPoint,
     createMultiplePoints: pointsHook.createMultiplePoints,
     updatePoint: pointsHook.updatePoint,
+    updateManyPoints: pointsHook.updateManyPoints,
     deletePoint: pointsHook.deletePoint,
     deleteAllPoints: pointsHook.deleteAllPoints,
     searchPoints: pointsHook.searchPoints,
