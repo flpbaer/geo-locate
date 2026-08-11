@@ -133,3 +133,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Enquanto a barra lateral é arrastada, a transição de largura atrapalha o cursor. */
+body[data-sidebar-resizing="true"] [data-slot="sidebar-container"],
+body[data-sidebar-resizing="true"] [data-slot="sidebar-gap"] {
+  transition: none;
+}

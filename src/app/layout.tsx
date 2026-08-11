@@ -2,7 +2,8 @@ import { Inter } from "next/font/google"
 import type React from "react"
 import "./globals.css"
 
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { SidebarInset } from "@/components/ui/sidebar"
+import { AppSidebarProvider } from "@/components/app-sidebar-provider"
 import { MapPointsProvider } from "@/components/map-points-provider"
 import { ClientSidebar } from "@/components/client-sidebar"
 
@@ -17,14 +18,14 @@ export default function RootLayout({
     <html lang="pt-BR">
       <body className={inter.className}>
         <MapPointsProvider>
-          <SidebarProvider>
+          <AppSidebarProvider>
             <div className="flex h-screen w-full">
               <ClientSidebar />
               <SidebarInset className="flex-1">
                 <main className="flex flex-1 flex-col h-full w-full">{children}</main>
               </SidebarInset>
             </div>
-          </SidebarProvider>
+          </AppSidebarProvider>
         </MapPointsProvider>
       </body>
     </html>

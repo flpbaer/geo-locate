@@ -36,7 +36,9 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { SidebarResizeHandle } from "@/components/sidebar-resize-handle"
 import Link from "next/link"
 
 export function AppSidebar() {
@@ -73,11 +75,11 @@ export function AppSidebar() {
 
   return (
     <div>
-      <Sidebar>
+      <Sidebar collapsible="icon">
         <SidebarHeader>
           <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton size="lg" asChild>
+            <SidebarMenuItem className="flex items-center gap-1">
+              <SidebarMenuButton size="lg" asChild className="group-data-[collapsible=icon]:hidden">
                 <Link href="/">
                   <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                     <User className="size-4" />
@@ -88,6 +90,7 @@ export function AppSidebar() {
                   </div>
                 </Link>
               </SidebarMenuButton>
+              <SidebarTrigger className="shrink-0" title="Minimizar barra lateral (⌘B)" />
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarHeader>
@@ -117,7 +120,7 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
 
-          <SidebarGroup>
+          <SidebarGroup className="group-data-[collapsible=icon]:hidden">
             <SidebarGroupLabel>Pesquisar</SidebarGroupLabel>
             <SidebarGroupContent>
               <div className="relative">
@@ -132,7 +135,7 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
 
-          <SidebarGroup>
+          <SidebarGroup className="group-data-[collapsible=icon]:hidden">
             <SidebarGroupLabel className="flex items-center justify-between gap-2">
               <span>Clientes ({points.length})</span>
               <DropdownMenu>
@@ -245,6 +248,8 @@ export function AppSidebar() {
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
+
+      <SidebarResizeHandle />
     </div>
   )
 }

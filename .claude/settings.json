@@ -39,7 +39,12 @@
       "Bash(node places-probe.mjs)",
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:3215/)",
       "Bash(node folders.mjs)",
-      "Bash(pkill -f \"next dev --turbopack -p 3215\")"
+      "Bash(pkill -f \"next dev --turbopack -p 3215\")",
+      "Bash(nohup npx next dev --turbopack -p 3216)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:3216/)",
+      "Bash(node resize.mjs)",
+      "Bash(curl -s -o /dev/null -w \"insights HTTP %{http_code}\\\\n\" http://localhost:3216/insights)",
+      "Bash(pkill -f \"next dev --turbopack -p 3216\")"
     ]
   }
 }
