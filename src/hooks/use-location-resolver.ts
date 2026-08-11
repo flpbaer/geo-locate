@@ -4,7 +4,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { useMapPoints } from "@/components/map-points-provider"
 import { clearReverseGeocodeCache, reverseGeocodePoints } from "@/lib/reverse-geocode"
-import type { Point, UpdatePointData } from "@/types/point"
+import type { Point, PointLocation, UpdatePointData } from "@/types/point"
+
+const LOCATION_FIELDS = ["city", "state", "address", "neighborhood", "postalCode", "placeId"] as const
+
+/**
+ * Só preenche campos vazios: o que veio do CSV tem prioridade sobre a geocodificação.
+ * Devolve `null` quando não há nada novo a gravar.
+ */
+export function mergeLocation(point: Point, location: PointLocation): UpdatePointData | null {
+  const data: UpdatePointData = {}
+
+  LOCATION_FIELDS.forEach((field) => {
+    if (!point[field] && location[field]) data[field] = location[field]
+  })
+
+  return Object.keys(data).length > 0 ? data : null
+}
 
 interface ResolverState {
   isResolving: boolean
@@ -59,12 +75,8 @@ export function useLocationResolver({ auto = true }: { auto?: boolean } = {}) {
           const location = resolved.get(point.id)
           if (!location) return
 
-          const data: UpdatePointData = {}
-          // O que veio do CSV tem prioridade sobre o que a geocodificação devolveu.
-          if (!point.city && location.city) data.city = location.city
-          if (!point.state && location.state) data.state = location.state
-
-          if (Object.keys(data).length > 0) updates.push({ id: point.id, data })
+          const data = mergeLocation(point, location)
+          if (data) updates.push({ id: point.id, data })
         })
 
         if (updates.length > 0 && !controller.signal.aborted) {

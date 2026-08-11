@@ -114,17 +114,22 @@ export function AppSidebar() {
                           <SidebarMenuSubItem key={client.id}>
                             <SidebarMenuSubButton
                               onClick={() => selectPoint(client)}
-                              className={`w-full cursor-pointer ${
+                              className={`h-auto w-full cursor-pointer py-1.5 ${
                                 selectedPoint?.id === client.id
                                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                                   : ""
                               }`}
                             >
-                              <div className="flex flex-col items-start w-full min-w-0 gap-1">
+                              <div className="flex flex-col items-start w-full min-w-0 gap-0.5">
                                 <span className="text-sm font-medium truncate w-full text-left">{client.name}</span>
-                                {client.description && (
+                                {(client.city || client.description) && (
                                   <span className="text-xs text-muted-foreground truncate w-full text-left">
-                                    {client.description}
+                                    {[
+                                      [client.city, client.state].filter(Boolean).join(" - "),
+                                      client.description,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" · ")}
                                   </span>
                                 )}
                               </div>

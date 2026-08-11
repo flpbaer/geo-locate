@@ -1,13 +1,11 @@
 "use client"
 
 import { toStateCode } from "@/lib/br-states"
+import type { PointLocation } from "@/types/point"
 
-export interface ResolvedLocation {
-  city: string | null
-  state: string | null
-}
+export type ResolvedLocation = PointLocation
 
-const CACHE_KEY = "geo-locate:reverse-geocode:v1"
+const CACHE_KEY = "geo-locate:reverse-geocode:v2"
 /** 3 casas decimais ≈ 110m: precisão de sobra para cidade/estado e ótimo aproveitamento de cache. */
 const CACHE_PRECISION = 3
 const MAX_CONCURRENCY = 5
@@ -68,10 +66,19 @@ function extractLocation(result: google.maps.GeocoderResult): ResolvedLocation {
   // locality cobre os demais casos (e outros países).
   const cityComponent = find("administrative_area_level_2") ?? find("locality") ?? find("postal_town")
   const stateComponent = find("administrative_area_level_1")
+  const neighborhoodComponent = find("sublocality_level_1") ?? find("sublocality") ?? find("neighborhood")
+  const routeComponent = find("route")
+  const numberComponent = find("street_number")
+
+  const street = [routeComponent?.long_name, numberComponent?.long_name].filter(Boolean).join(", ")
 
   return {
-    city: cityComponent?.long_name ?? null,
-    state: toStateCode(stateComponent?.short_name) ?? stateComponent?.short_name ?? null,
+    city: cityComponent?.long_name || undefined,
+    state: toStateCode(stateComponent?.short_name) ?? stateComponent?.short_name ?? undefined,
+    address: street || result.formatted_address || undefined,
+    neighborhood: neighborhoodComponent?.long_name || undefined,
+    postalCode: find("postal_code")?.long_name || undefined,
+    placeId: result.place_id || undefined,
   }
 }
 
@@ -105,7 +112,7 @@ async function geocodeOnce(
   try {
     const response = await geocoder.geocode({ location: { lat, lng } })
     const result = response.results?.[0]
-    return result ? extractLocation(result) : { city: null, state: null }
+    return result ? extractLocation(result) : {}
   } catch (error) {
     const status = (error as { code?: string })?.code
     const isRateLimit = status === "OVER_QUERY_LIMIT" || String(error).includes("OVER_QUERY_LIMIT")
@@ -116,7 +123,7 @@ async function geocodeOnce(
     }
 
     if (String(error).includes("ZERO_RESULTS")) {
-      return { city: null, state: null }
+      return {}
     }
 
     throw error

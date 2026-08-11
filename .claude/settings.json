@@ -27,7 +27,16 @@
       "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:3212/insights)",
       "Bash(echo \"GET /insights => $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:3212/insights\\)\")",
       "Bash(sed -i '' 's/3210/3212/g' shot.mjs)",
-      "Bash(pkill -f \"next dev --turbopack -p 3212\")"
+      "Bash(pkill -f \"next dev --turbopack -p 3212\")",
+      "Bash(nohup npx next dev --turbopack -p 3213)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:3213/)",
+      "Bash(node details.mjs)",
+      "Bash(sed -i '' 's|const dialogText = await page.locator\\(.\\\\[role=\"dialog\"\\\\].\\).innerText\\(\\)|const dialogText = await page.getByRole\\(\"dialog\", { name: \"Metalúrgica Blumenau\" }\\).innerText\\(\\)|; s|page.locator\\(.\\\\[role=\"dialog\"\\\\] a.\\)|page.getByRole\\(\"dialog\", { name: \"Metalúrgica Blumenau\" }\\).locator\\(\"a\"\\)|' details.mjs)",
+      "Bash(pkill -f \"next dev --turbopack -p 3213\")",
+      "Bash(nohup npx next dev --turbopack -p 3214)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:3214/)",
+      "Bash(node sheet.mjs)",
+      "Bash(node places-probe.mjs)"
     ]
   }
 }

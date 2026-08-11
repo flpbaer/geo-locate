@@ -261,7 +261,19 @@ export class PointsUseCase implements IPointsUseCase {
   }
 
   exportPointsToCSV(points: Point[]): string {
-    const headers = ["name", "lat", "lng", "description", "category", "color", "cidade", "estado"]
+    const headers = [
+      "name",
+      "lat",
+      "lng",
+      "description",
+      "category",
+      "color",
+      "cidade",
+      "estado",
+      "endereco",
+      "bairro",
+      "cep",
+    ]
 
     if (points.length === 0) {
       return headers.join(",")
@@ -281,6 +293,9 @@ export class PointsUseCase implements IPointsUseCase {
           escape(point.color),
           escape(point.city),
           escape(point.state),
+          escape(point.address),
+          escape(point.neighborhood),
+          escape(point.postalCode),
         ].join(","),
       ),
     ].join("\n")
@@ -329,6 +344,9 @@ export class PointsUseCase implements IPointsUseCase {
         color: valueAt(values, columns.color),
         city: valueAt(values, columns.city),
         state: toStateCode(state) ?? state,
+        address: valueAt(values, columns.address),
+        neighborhood: valueAt(values, columns.neighborhood),
+        postalCode: valueAt(values, columns.postalCode),
       })
     }
 

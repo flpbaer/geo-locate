@@ -42,6 +42,9 @@ export interface CSVColumnIndexes {
   color: number
   city: number
   state: number
+  address: number
+  neighborhood: number
+  postalCode: number
 }
 
 export function findCSVColumns(headers: string[]): CSVColumnIndexes {
@@ -56,6 +59,9 @@ export function findCSVColumns(headers: string[]): CSVColumnIndexes {
     color: find((h) => h === "color" || h === "cor"),
     city: find((h) => h.includes("cidade") || h.includes("city") || h.includes("munic")),
     state: find((h) => h.includes("estado") || h.includes("state") || h === "uf"),
+    address: find((h) => h.includes("endereco") || h.includes("endereço") || h.includes("address") || h.includes("logradouro")),
+    neighborhood: find((h) => h.includes("bairro") || h.includes("neighborhood")),
+    postalCode: find((h) => h.includes("cep") || h.includes("postal") || h.includes("zip")),
   }
 }
 

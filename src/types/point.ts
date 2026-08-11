@@ -1,4 +1,15 @@
-export interface Point {
+/** Campos de localização resolvidos por geocodificação reversa (ou vindos do CSV). */
+export interface PointLocation {
+    city?: string
+    state?: string
+    address?: string
+    neighborhood?: string
+    postalCode?: string
+    /** Identificador do local no Google, usado para montar links precisos. */
+    placeId?: string
+  }
+
+  export interface Point extends PointLocation {
     id: string
     name: string
     lat: number
@@ -6,30 +17,24 @@ export interface Point {
     description?: string
     category?: string
     color?: string
-    city?: string
-    state?: string
   }
 
-  export interface CreatePointData {
+  export interface CreatePointData extends PointLocation {
     name: string
     lat: number
     lng: number
     description?: string
     category?: string
     color?: string
-    city?: string
-    state?: string
   }
 
-  export interface UpdatePointData {
+  export interface UpdatePointData extends PointLocation {
     name?: string
     lat?: number
     lng?: number
     description?: string
     category?: string
     color?: string
-    city?: string
-    state?: string
   }
 
   export interface PointFilters {

@@ -2,8 +2,10 @@
 "use client"
 
 import React, { useState, useCallback, useMemo, useEffect } from "react"
-import { GoogleMap, Marker, InfoWindow } from "@react-google-maps/api"
+import { GoogleMap, Marker } from "@react-google-maps/api"
 import { useMapPoints } from "@/components/map-points-provider"
+import { ClientDetailsSheet } from "@/components/client-details-sheet"
+import type { Point } from "@/types/point"
 
 export const defaultMapContainerStyle = {
   width: "100%",
@@ -14,14 +16,6 @@ export const defaultMapContainerStyle = {
 const defaultMapCenter = {
   lat: -26.888244,
   lng: -49.081448,
-}
-
-interface CSVPoint {
-  id: string
-  name: string
-  lat: number
-  lng: number
-  description?: string
 }
 
 declare global {
@@ -35,8 +29,8 @@ const OptimizedMarker = React.memo(
     onClick,
     icon,
   }: {
-    point: CSVPoint
-    onClick: (point: CSVPoint) => void
+    point: Point
+    onClick: (point: Point) => void
     icon: any
     isSelected: boolean
   }) => {
@@ -51,11 +45,17 @@ const OptimizedMarker = React.memo(
 OptimizedMarker.displayName = "OptimizedMarker"
 const MapComponent = () => {
   const { points: importedPoints, selectedPoint, selectPoint } = useMapPoints()
-  const [selectedMarker, setSelectedMarker] = useState<CSVPoint | null>(null)
+  const [detailsPointId, setDetailsPointId] = useState<string | null>(null)
   const [mapCenter, setMapCenter] = useState(defaultMapCenter)
   const [mapZoom, setMapZoom] = useState(5)
   const [map, setMap] = useState<google.maps.Map | null>(null)
   const [hasInitializedView, setHasInitializedView] = useState(false)
+
+  // Derivado da lista viva: o endereço buscado dentro do modal precisa aparecer nele.
+  const detailsPoint = useMemo(
+    () => importedPoints.find((point) => point.id === detailsPointId) ?? null,
+    [importedPoints, detailsPointId],
+  )
 
   const markerIcons = useMemo(() => {
     if (typeof window === "undefined" || !window.google) return { default: null, selected: null }
@@ -120,7 +120,7 @@ const MapComponent = () => {
   }, [importedPoints, hasInitializedView])
 
   const centerMapOnPoint = useCallback(
-    (point: CSVPoint) => {
+    (point: Point) => {
       const newCenter = { lat: point.lat, lng: point.lng }
 
       if (map) {
@@ -138,13 +138,11 @@ const MapComponent = () => {
     [map, mapZoom],
   )
 
+  // Selecionar pela sidebar centraliza o mapa e abre o painel do cliente.
   useEffect(() => {
-    if (selectedPoint) {
-      setSelectedMarker(selectedPoint)
-      centerMapOnPoint(selectedPoint)
-    } else {
-      setSelectedMarker(null)
-    }
+    if (!selectedPoint) return
+    centerMapOnPoint(selectedPoint)
+    setDetailsPointId(selectedPoint.id)
   }, [selectedPoint, centerMapOnPoint])
 
   useEffect(() => {
@@ -160,16 +158,12 @@ const MapComponent = () => {
   }, [importedPoints.length])
 
   const handleMarkerClick = useCallback(
-    (point: CSVPoint) => {
+    (point: Point) => {
       selectPoint(point)
-      setSelectedMarker(point)
+      setDetailsPointId(point.id)
     },
     [selectPoint],
   )
-  const handleInfoWindowClose = useCallback(() => {
-    setSelectedMarker(null)
-    selectPoint(null)
-  }, [])
 
   const onMapLoad = useCallback((mapInstance: google.maps.Map) => {
     setMap(mapInstance)
@@ -216,40 +210,18 @@ const MapComponent = () => {
           )
         })}
 
-        {selectedMarker && (
-          <InfoWindow
-            position={{ lat: selectedMarker.lat, lng: selectedMarker.lng }}
-            onCloseClick={handleInfoWindowClose}
-            options={{
-              pixelOffset: new window.google.maps.Size(0, -40),
-            }}
-          >
-            <div className="p-3 max-w-xs">
-              <h3 className="font-semibold text-base mb-2 text-gray-800">{selectedMarker.name}</h3>
-              {selectedMarker.description && (
-                <p className="text-sm text-gray-600 mb-3 leading-relaxed">{selectedMarker.description}</p>
-              )}
-              <div className="text-xs text-gray-500 space-y-1 border-t pt-2">
-                <div className="flex justify-between">
-                  <span className="font-medium">Latitude:</span>
-                  <span className="font-mono">{selectedMarker.lat.toFixed(6)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Longitude:</span>
-                  <span className="font-mono">{selectedMarker.lng.toFixed(6)}</span>
-                </div>
-              </div>
-              {(selectedMarker as any).category && (
-                <div className="mt-2 pt-2 border-t">
-                  <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                    {(selectedMarker as any).category}
-                  </span>
-                </div>
-              )}
-            </div>
-          </InfoWindow>
-        )}
       </GoogleMap>
+
+      <ClientDetailsSheet
+        point={detailsPoint}
+        open={detailsPoint !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDetailsPointId(null)
+            selectPoint(null)
+          }
+        }}
+      />
     </div>
   )
 }
