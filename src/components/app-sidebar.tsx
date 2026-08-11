@@ -1,12 +1,27 @@
 "use client"
-import { BarChart3, ChevronDown, Folder, Map, Search, User } from "lucide-react"
+import { BarChart3, ChevronDown, Folder, FolderTree, Loader2, Map, Search, User } from "lucide-react"
 import { usePathname } from "next/navigation"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
 import { useMapPoints } from "@/components/map-points-provider"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { useLocationResolver } from "@/hooks/use-location-resolver"
+import {
+  GROUPING_LABELS,
+  LOCATION_GROUPINGS,
+  groupClients,
+  useGroupingMode,
+  type GroupingMode,
+} from "@/lib/client-grouping"
+import { normalizeText } from "@/lib/br-states"
 import {
   Sidebar,
   SidebarContent,
@@ -25,11 +40,36 @@ import {
 import Link from "next/link"
 
 export function AppSidebar() {
-  const [isOpen, setIsOpen] = useState(true)
+  const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({})
   const [searchTerm, setSearchTerm] = useState("")
   const pathname = usePathname()
   const { points, selectPoint, selectedPoint } = useMapPoints()
-  const filteredClients = points.filter((client) => client.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  const [groupingMode, setGroupingMode] = useGroupingMode()
+  const { isResolving, resolve } = useLocationResolver({ auto: false })
+
+  const filteredClients = useMemo(() => {
+    const term = normalizeText(searchTerm)
+    if (!term) return points
+
+    return points.filter((client) =>
+      [client.name, client.city, client.category].some(
+        (value) => value && normalizeText(value).includes(term),
+      ),
+    )
+  }, [points, searchTerm])
+
+  const folders = useMemo(() => groupClients(filteredClients, groupingMode), [filteredClients, groupingMode])
+
+  const isFolderOpen = (key: string) => openFolders[key] ?? (groupingMode === "none" || folders.length <= 3)
+
+  const toggleFolder = (key: string, open: boolean) => setOpenFolders((prev) => ({ ...prev, [key]: open }))
+
+  const changeGrouping = (mode: GroupingMode) => {
+    setGroupingMode(mode)
+    setOpenFolders({})
+    // Agrupar por estado/cidade exige o dado; buscar só quando o usuário pede.
+    if (LOCATION_GROUPINGS.includes(mode)) void resolve()
+  }
 
   return (
     <div>
@@ -93,59 +133,99 @@ export function AppSidebar() {
           </SidebarGroup>
 
           <SidebarGroup>
-            <SidebarGroupLabel>Clientes ({points.length})</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton>
-                        <Folder className="text-blue-500" />
-                        <span>Todos os Clientes</span>
-                        <ChevronDown className={`ml-auto h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                  </SidebarMenuItem>
+            <SidebarGroupLabel className="flex items-center justify-between gap-2">
+              <span>Clientes ({points.length})</span>
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-xs hover:bg-sidebar-accent">
+                  <FolderTree className="h-3.5 w-3.5" />
+                  {GROUPING_LABELS[groupingMode]}
+                  <ChevronDown className="h-3 w-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {(Object.keys(GROUPING_LABELS) as GroupingMode[]).map((mode) => (
+                    <DropdownMenuItem
+                      key={mode}
+                      onClick={() => changeGrouping(mode)}
+                      className={mode === groupingMode ? "bg-accent" : ""}
+                    >
+                      {GROUPING_LABELS[mode]}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </SidebarGroupLabel>
 
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      {filteredClients.length > 0 ? (
-                        filteredClients.map((client) => (
-                          <SidebarMenuSubItem key={client.id}>
-                            <SidebarMenuSubButton
-                              onClick={() => selectPoint(client)}
-                              className={`h-auto w-full cursor-pointer py-1.5 ${
-                                selectedPoint?.id === client.id
-                                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                                  : ""
-                              }`}
-                            >
-                              <div className="flex flex-col items-start w-full min-w-0 gap-0.5">
-                                <span className="text-sm font-medium truncate w-full text-left">{client.name}</span>
-                                {(client.city || client.description) && (
-                                  <span className="text-xs text-muted-foreground truncate w-full text-left">
-                                    {[
-                                      [client.city, client.state].filter(Boolean).join(" - "),
-                                      client.description,
-                                    ]
-                                      .filter(Boolean)
-                                      .join(" · ")}
-                                  </span>
-                                )}
-                              </div>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        ))
-                      ) : (
-                        <SidebarMenuSubItem>
-                          <div className="px-2 py-2 text-xs text-muted-foreground">
-                            {searchTerm ? "Nenhum cliente encontrado" : "Nenhum cliente importado"}
-                          </div>
-                        </SidebarMenuSubItem>
-                      )}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </Collapsible>
+            <SidebarGroupContent>
+              {isResolving && (
+                <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Identificando localizações...
+                </div>
+              )}
+
+              <SidebarMenu>
+                {points.length === 0 || folders.length === 0 ? (
+                  <div className="px-2 py-2 text-xs text-muted-foreground">
+                    {searchTerm ? "Nenhum cliente encontrado" : "Nenhum cliente importado"}
+                  </div>
+                ) : (
+                  folders.map((folder) => {
+                    const open = isFolderOpen(folder.key)
+
+                    return (
+                      <Collapsible
+                        key={folder.key}
+                        open={open}
+                        onOpenChange={(next) => toggleFolder(folder.key, next)}
+                        className="w-full"
+                      >
+                        <SidebarMenuItem>
+                          <CollapsibleTrigger asChild>
+                            <SidebarMenuButton>
+                              <Folder className={folder.isFallback ? "text-muted-foreground" : "text-blue-500"} />
+                              <span className="truncate">{folder.label}</span>
+                              <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
+                                {folder.points.length}
+                                <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+                              </span>
+                            </SidebarMenuButton>
+                          </CollapsibleTrigger>
+                        </SidebarMenuItem>
+
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            {folder.points.map((client) => (
+                              <SidebarMenuSubItem key={client.id}>
+                                <SidebarMenuSubButton
+                                  onClick={() => selectPoint(client)}
+                                  className={`h-auto w-full cursor-pointer py-1.5 ${
+                                    selectedPoint?.id === client.id
+                                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                                      : ""
+                                  }`}
+                                >
+                                  <div className="flex flex-col items-start w-full min-w-0 gap-0.5">
+                                    <span className="text-sm font-medium truncate w-full text-left">{client.name}</span>
+                                    {(client.city || client.description) && (
+                                      <span className="text-xs text-muted-foreground truncate w-full text-left">
+                                        {[
+                                          [client.city, client.state].filter(Boolean).join(" - "),
+                                          client.description,
+                                        ]
+                                          .filter(Boolean)
+                                          .join(" · ")}
+                                      </span>
+                                    )}
+                                  </div>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            ))}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )
+                  })
+                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

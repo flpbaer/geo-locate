@@ -36,7 +36,10 @@
       "Bash(nohup npx next dev --turbopack -p 3214)",
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:3214/)",
       "Bash(node sheet.mjs)",
-      "Bash(node places-probe.mjs)"
+      "Bash(node places-probe.mjs)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:3215/)",
+      "Bash(node folders.mjs)",
+      "Bash(pkill -f \"next dev --turbopack -p 3215\")"
     ]
   }
 }

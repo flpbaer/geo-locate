@@ -4,7 +4,7 @@
 import type React from "react"
 
 import { useState, useRef, useMemo } from "react"
-import { Upload, MapPin, FileSpreadsheet, AlertCircle, Plus, RotateCcw } from "lucide-react"
+import { Upload, MapPin, FileSpreadsheet, AlertCircle, Plus, RotateCcw, FolderTree } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -21,6 +21,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toStateCode } from "@/lib/br-states"
 import { findCSVColumns, parseCSVLine, valueAt } from "@/lib/csv"
+import {
+  GROUPING_LABELS,
+  LOCATION_GROUPINGS,
+  groupClients,
+  useGroupingMode,
+  type GroupingMode,
+} from "@/lib/client-grouping"
+import { useLocationResolver } from "@/hooks/use-location-resolver"
 import type { CreatePointData, Point } from "@/types/point"
 
 interface ImportCSVDialogProps {
@@ -41,7 +49,7 @@ interface PreviewPoint {
 }
 
 type ImportMode = "concatenate" | "overwrite" | null
-type ImportStep = "upload" | "preview" | "confirm"
+type ImportStep = "upload" | "preview" | "confirm" | "organize"
 
 export function ImportCSVDialog({ open, onOpenChange }: ImportCSVDialogProps) {
   const { createMultiplePoints, deleteAllPoints, points, isLoading, error, clearError } = useMapPoints()
@@ -50,6 +58,8 @@ export function ImportCSVDialog({ open, onOpenChange }: ImportCSVDialogProps) {
   const [parseError, setParseError] = useState<string | null>(null)
   const [importStep, setImportStep] = useState<ImportStep>("upload")
   const [importMode, setImportMode] = useState<ImportMode>(null)
+  const [, setGrouping] = useGroupingMode()
+  const { resolve: resolveLocations } = useLocationResolver({ auto: false })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const hasExistingPoints = points.length > 0
@@ -77,6 +87,44 @@ export function ImportCSVDialog({ open, onOpenChange }: ImportCSVDialogProps) {
       newPoints: previewPoints.length - duplicateCount,
     }
   }, [previewPoints, points])
+
+  /** Quantas pastas cada critério geraria na base já importada. */
+  const groupingOptions = useMemo(() => {
+    const missingLocation = points.filter((point) => !point.state).length
+    const missingCity = points.filter((point) => !point.city).length
+    const missingCategory = points.filter((point) => !point.category).length
+
+    const pendingHint = (missing: number) =>
+      missing > 0 ? ` ${missing} cliente(s) ainda sem o dado serão identificados automaticamente.` : ""
+
+    return [
+      {
+        mode: "none" as GroupingMode,
+        folders: null,
+        hint: "Mantém uma lista única com todos os clientes.",
+      },
+      {
+        mode: "state" as GroupingMode,
+        folders: groupClients(points, "state").length,
+        hint: `Uma pasta por estado, da maior para a menor.${pendingHint(missingLocation)}`,
+      },
+      {
+        mode: "city" as GroupingMode,
+        folders: groupClients(points, "city").length,
+        hint: `Uma pasta por cidade.${pendingHint(missingCity)}`,
+      },
+      {
+        mode: "category" as GroupingMode,
+        folders: groupClients(points, "category").length,
+        hint:
+          missingCategory === points.length
+            ? "Nenhum cliente tem categoria no CSV importado."
+            : `Usa a coluna "categoria" do CSV.${
+                missingCategory > 0 ? ` ${missingCategory} sem categoria ficam em uma pasta à parte.` : ""
+              }`,
+      },
+    ]
+  }, [points])
 
   const processCSVPreview = async (file: File) => {
     setProcessingFile(true)
@@ -194,11 +242,24 @@ export function ImportCSVDialog({ open, onOpenChange }: ImportCSVDialogProps) {
         await deleteAllPoints()
       }
       await createMultiplePoints(pointsToCreate)
-      resetDialog()
-      onOpenChange(false)
+      // Importou: agora pergunta como organizar a lista de clientes.
+      setImportMode(mode)
+      setImportStep("organize")
     } catch (error) {
       console.error("Erro ao importar pontos:", error)
     }
+  }
+
+  const applyGrouping = (mode: GroupingMode) => {
+    setGrouping(mode)
+
+    // Agrupar por estado/cidade exige o dado — este clique é o aceite para buscá-lo.
+    if (LOCATION_GROUPINGS.includes(mode)) {
+      void resolveLocations()
+    }
+
+    resetDialog()
+    onOpenChange(false)
   }
 
   const resetDialog = () => {
@@ -247,11 +308,13 @@ export function ImportCSVDialog({ open, onOpenChange }: ImportCSVDialogProps) {
             {importStep === "upload" && "Importar Pontos CSV"}
             {importStep === "preview" && "Visualizar Pontos"}
             {importStep === "confirm" && "Confirmar Importação"}
+            {importStep === "organize" && "Organizar Clientes"}
           </DialogTitle>
           <DialogDescription>
             {importStep === "upload" && "Carregue um arquivo CSV com pontos para adicionar ao mapa."}
             {importStep === "preview" && `${previewPoints.length} pontos encontrados no arquivo.`}
             {importStep === "confirm" && "Escolha como deseja importar os pontos."}
+            {importStep === "organize" && "Importação concluída. Escolha como agrupar a lista de clientes."}
           </DialogDescription>
         </DialogHeader>
 
@@ -404,6 +467,44 @@ export function ImportCSVDialog({ open, onOpenChange }: ImportCSVDialogProps) {
               </div>
             </div>
           )}
+
+          {importStep === "organize" && (
+            <div className="space-y-4">
+              <Alert>
+                <FolderTree className="h-4 w-4" />
+                <AlertDescription>
+                  {points.length} cliente(s) na base. Quer separar a lista lateral em pastas?
+                </AlertDescription>
+              </Alert>
+
+              <ScrollArea className="max-h-[320px]">
+                <div className="grid grid-cols-1 gap-2 pr-2">
+                  {groupingOptions.map((option) => (
+                    <Button
+                      key={option.mode}
+                      variant="outline"
+                      onClick={() => applyGrouping(option.mode)}
+                      className="h-auto cursor-pointer flex-col items-start gap-1 p-4 text-left hover:border-blue-300 hover:bg-blue-50"
+                    >
+                      <div className="flex w-full items-center justify-between gap-2">
+                        <span className="font-medium">{GROUPING_LABELS[option.mode]}</span>
+                        {option.folders !== null && (
+                          <Badge variant="secondary">
+                            {option.folders} {option.folders === 1 ? "pasta" : "pastas"}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs font-normal text-muted-foreground whitespace-normal">{option.hint}</p>
+                    </Button>
+                  ))}
+                </div>
+              </ScrollArea>
+
+              <p className="text-xs text-muted-foreground">
+                Dá para mudar isso depois pelo menu &quot;Agrupar por&quot; na lista de clientes.
+              </p>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-2">
@@ -412,6 +513,7 @@ export function ImportCSVDialog({ open, onOpenChange }: ImportCSVDialogProps) {
               <p>Formato esperado: name, lat, lng, description, category, color, cidade, estado</p>
             )}
             {importStep === "preview" && <p>{previewPoints.length} pontos encontrados no arquivo</p>}
+            {importStep === "organize" && <p>{points.length} clientes importados</p>}
             {importStep === "confirm" && (
               <p>
                 {duplicateAnalysis.duplicates > 0
@@ -421,8 +523,12 @@ export function ImportCSVDialog({ open, onOpenChange }: ImportCSVDialogProps) {
             )}
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleCancel} className="cursor-pointer">
-              Cancelar
+            <Button
+              variant="outline"
+              onClick={() => (importStep === "organize" ? applyGrouping("none") : handleCancel())}
+              className="cursor-pointer"
+            >
+              {importStep === "organize" ? "Agora não" : "Cancelar"}
             </Button>
             {importStep === "preview" && (
               <Button
