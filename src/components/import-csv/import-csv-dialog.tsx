@@ -4,7 +4,7 @@
 import type React from "react"
 
 import { useState, useRef, useMemo } from "react"
-import { Upload, MapPin, FileSpreadsheet, AlertCircle, Plus, RotateCcw, FolderTree } from "lucide-react"
+import { Upload, MapPin, FileSpreadsheet, AlertCircle, Plus, RotateCcw, FolderTree, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
 import { toStateCode } from "@/lib/br-states"
 import { findCSVColumns, parseCSVLine, valueAt } from "@/lib/csv"
 import {
@@ -348,6 +349,47 @@ export function ImportCSVDialog({ open, onOpenChange }: ImportCSVDialogProps) {
                 </Button>
               </div>
 
+              {/* Primeira vez aqui: leva o modelo pronto em vez de adivinhar o formato. */}
+              <div className="mt-4 rounded-lg border bg-muted/40 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium">Não sabe como montar o arquivo?</p>
+                    <p className="text-xs text-muted-foreground">
+                      Baixe o modelo com 31 empresas de exemplo, em 12 estados.
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" asChild className="cursor-pointer">
+                    <a href="/clientes-exemplo.csv" download="clientes-exemplo.csv">
+                      <Download className="mr-2 h-4 w-4" />
+                      Baixar exemplo
+                    </a>
+                  </Button>
+                </div>
+
+                <Separator className="my-3" />
+
+                <p className="text-xs font-medium text-foreground">Colunas aceitas</p>
+                <div className="mt-2 space-y-1.5 text-xs">
+                  <div className="flex gap-2">
+                    <Badge variant="secondary" className="shrink-0 text-[10px]">
+                      obrigatórias
+                    </Badge>
+                    <span className="font-mono text-muted-foreground">name, lat, lng</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Badge variant="outline" className="shrink-0 text-[10px]">
+                      opcionais
+                    </Badge>
+                    <span className="font-mono text-muted-foreground">
+                      description, categoria, cidade, estado, endereco, bairro, cep, color
+                    </span>
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Sem cidade e estado, o app identifica pelas coordenadas.
+                </p>
+              </div>
+
               {parseError && (
                 <Alert variant="destructive" className="mt-4">
                   <AlertCircle className="h-4 w-4" />
@@ -509,9 +551,6 @@ export function ImportCSVDialog({ open, onOpenChange }: ImportCSVDialogProps) {
 
         <DialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-2">
           <div className="text-xs text-muted-foreground mb-4 sm:mb-0">
-            {importStep === "upload" && (
-              <p>Formato esperado: name, lat, lng, description, category, color, cidade, estado</p>
-            )}
             {importStep === "preview" && <p>{previewPoints.length} pontos encontrados no arquivo</p>}
             {importStep === "organize" && <p>{points.length} clientes importados</p>}
             {importStep === "confirm" && (

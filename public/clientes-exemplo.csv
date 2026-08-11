@@ -1,0 +1,32 @@
+name,lat,lng,description,categoria,cidade,estado
+WEG Equipamentos Elétricos,-26.4867,-49.0669,Unidade fabril,Indústria,Jaraguá do Sul,SC
+Cia Hering,-26.9134,-49.0661,Matriz,Indústria,Blumenau,SC
+Havan,-27.0977,-48.9128,Matriz administrativa,Varejo,Brusque,SC
+Malwee Malhas,-26.4900,-49.0800,Unidade fabril,Indústria,Jaraguá do Sul,SC
+Portonave,-26.7889,-48.6533,Terminal portuário,Logística,Navegantes,SC
+O Boticário,-25.5350,-49.2060,Centro de produção,Indústria,São José dos Pinhais,PR
+Copel,-25.4284,-49.2733,Sede administrativa,Energia,Curitiba,PR
+Positivo Tecnologia,-25.4100,-49.3200,Unidade fabril,Tecnologia,Curitiba,PR
+Cocamar Cooperativa,-23.4205,-51.9331,Unidade cooperativa,Agronegócio,Maringá,PR
+Gerdau,-30.0346,-51.2177,Escritório regional,Indústria,Porto Alegre,RS
+Randon Implementos,-29.1685,-51.1796,Unidade fabril,Indústria,Caxias do Sul,RS
+Grendene,-29.2247,-51.3478,Unidade fabril,Indústria,Farroupilha,RS
+Ambev,-23.5960,-46.6870,Sede administrativa,Indústria,São Paulo,SP
+Itaú Unibanco,-23.6000,-46.6970,Centro administrativo,Serviços Financeiros,São Paulo,SP
+Natura,-23.3560,-46.8760,Centro de distribuição,Indústria,Cajamar,SP
+Embraer,-23.2237,-45.8620,Unidade fabril,Indústria,São José dos Campos,SP
+Bradesco,-23.5330,-46.7920,Centro administrativo,Serviços Financeiros,Osasco,SP
+Raízen,-22.7253,-47.6492,Unidade produtiva,Agronegócio,Piracicaba,SP
+Grupo Pão de Açúcar,-23.5640,-46.6900,Sede administrativa,Varejo,São Paulo,SP
+Petrobras,-22.9080,-43.1780,Sede administrativa,Energia,Rio de Janeiro,RJ
+Vale,-22.9110,-43.1760,Escritório central,Indústria,Rio de Janeiro,RJ
+Grupo Globo,-22.9830,-43.2280,Centro de produção,Mídia,Rio de Janeiro,RJ
+Cemig,-19.9390,-43.9380,Sede administrativa,Energia,Belo Horizonte,MG
+Localiza,-19.9350,-43.9400,Sede administrativa,Serviços,Belo Horizonte,MG
+Usiminas,-19.4700,-42.5370,Usina siderúrgica,Indústria,Ipatinga,MG
+Braskem,-12.6970,-38.3240,Polo petroquímico,Indústria,Camaçari,BA
+M. Dias Branco,-3.8900,-38.4510,Unidade fabril,Indústria,Eusébio,CE
+Baterias Moura,-8.3350,-36.4240,Unidade fabril,Indústria,Belo Jardim,PE
+Amaggi,-16.4670,-54.6350,Unidade de originação,Agronegócio,Rondonópolis,MT
+Polo Industrial de Manaus,-3.1190,-60.0217,Distrito industrial,Indústria,Manaus,AM
+Banco de Brasília,-15.7940,-47.8820,Sede administrativa,Serviços Financeiros,Brasília,DF

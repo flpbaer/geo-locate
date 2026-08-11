@@ -44,7 +44,12 @@
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:3216/)",
       "Bash(node resize.mjs)",
       "Bash(curl -s -o /dev/null -w \"insights HTTP %{http_code}\\\\n\" http://localhost:3216/insights)",
-      "Bash(pkill -f \"next dev --turbopack -p 3216\")"
+      "Bash(pkill -f \"next dev --turbopack -p 3216\")",
+      "Bash(nohup npx next dev --turbopack -p 3217)",
+      "Bash(curl -s -o /dev/null -w \"app HTTP %{http_code}\\\\n\" http://localhost:3217/)",
+      "Bash(curl -s -o /dev/null -w \"csv HTTP %{http_code}\\\\n\" http://localhost:3217/clientes-exemplo.csv)",
+      "Bash(node sample.mjs)",
+      "Bash(pkill -f \"next dev --turbopack -p 3217\")"
     ]
   }
 }
