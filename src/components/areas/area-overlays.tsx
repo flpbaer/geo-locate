@@ -5,24 +5,28 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import { AreaDrawing } from "@/components/areas/area-drawing"
 import { useAreas } from "@/components/areas/areas-provider"
-import type { AreaPatch, CircleArea, LatLng, PolygonArea } from "@/types/area"
-
-const ACTIVE_STROKE = "#2a78d6"
-const IDLE_STROKE = "#94a3b8"
+import { resolveAreaStyle } from "@/lib/area-style"
+import type { AreaPatch, AreaStyle, CircleArea, LatLng, PolygonArea } from "@/types/area"
 
 /** Tolerância de comparação geométrica: ~1 cm em graus, e 1 cm em metros. */
 const EPSILON_DEGREES = 1e-7
 const EPSILON_METERS = 0.01
 
-/** `isDrawing` desliga o clique nas formas já existentes: durante o desenho elas
- *  engoliriam os cliques destinados ao mapa. */
-function shapeOptions(isActive: boolean, isDrawing = false) {
+/**
+ * A cor identifica a área e não muda com a seleção — o destaque da área ativa vem de
+ * borda mais grossa e preenchimento mais forte, para que cada território mantenha sua
+ * identidade visual mesmo quando outro está selecionado.
+ *
+ * `isDrawing` desliga o clique nas formas existentes: durante o desenho elas
+ * engoliriam os cliques destinados ao mapa.
+ */
+function shapeOptions(style: AreaStyle, isActive: boolean, isDrawing = false) {
   return {
-    strokeColor: isActive ? ACTIVE_STROKE : IDLE_STROKE,
-    strokeOpacity: isActive ? 0.9 : 0.55,
-    strokeWeight: isActive ? 2 : 1.5,
-    fillColor: isActive ? ACTIVE_STROKE : IDLE_STROKE,
-    fillOpacity: isActive ? 0.12 : 0.06,
+    strokeColor: style.strokeColor,
+    strokeOpacity: isActive ? 1 : 0.7,
+    strokeWeight: isActive ? style.strokeWeight + 1 : style.strokeWeight,
+    fillColor: style.fillColor,
+    fillOpacity: isActive ? style.fillOpacity : style.fillOpacity * 0.55,
     clickable: !isDrawing,
     zIndex: isActive ? 2 : 1,
   }
@@ -97,7 +101,7 @@ function AreaCircleShape({ area, isActive, isDrawing, onSelect, onCommit }: Shap
       radius={area.radius}
       editable={isActive && !isDrawing}
       draggable={isActive && !isDrawing}
-      options={shapeOptions(isActive, isDrawing)}
+      options={shapeOptions(resolveAreaStyle(area), isActive, isDrawing)}
       onLoad={(circle) => (instance.current = circle)}
       onUnmount={() => (instance.current = null)}
       onClick={() => onSelect(area.id)}
@@ -151,7 +155,7 @@ function AreaPolygonShape({ area, isActive, isDrawing, onSelect, onCommit }: Sha
       path={area.path}
       editable={isActive && !isDrawing}
       draggable={isActive && !isDrawing}
-      options={shapeOptions(isActive, isDrawing)}
+      options={shapeOptions(resolveAreaStyle(area), isActive, isDrawing)}
       onLoad={setInstance}
       onUnmount={() => setInstance(null)}
       onClick={() => onSelect(area.id)}

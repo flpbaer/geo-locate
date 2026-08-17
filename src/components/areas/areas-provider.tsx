@@ -4,9 +4,10 @@ import type React from "react"
 import { createContext, useCallback, useContext, useMemo, useState } from "react"
 
 import { useMapPoints } from "@/components/map-points-provider"
+import { nextStyle, resolveAreaStyle } from "@/lib/area-style"
 import { useStoredAreas } from "@/lib/areas-store"
 import * as drawing from "@/lib/drawing-draft"
-import type { Area, AreaDraft, AreaKind, AreaPatch, DrawingDraft, LatLng } from "@/types/area"
+import type { Area, AreaDraft, AreaKind, AreaPatch, AreaStyle, DrawingDraft, LatLng } from "@/types/area"
 import type { Point } from "@/types/point"
 import { areasUseCase, type AreaInsights } from "@/usecases/areas-usecase"
 
@@ -32,9 +33,13 @@ interface AreasContextType {
   finishDraft: () => void
   canUndoDraft: boolean
   canFinishDraft: boolean
+  /** Aparência que a próxima área vai receber — usada no preview do desenho. */
+  draftStyle: AreaStyle
   createArea: (draft: AreaDraft) => Area
   selectArea: (id: string | null) => void
   renameArea: (id: string, name: string) => void
+  /** Troca a cor de borda, de fundo e a opacidade de uma área. */
+  updateStyle: (id: string, style: AreaStyle) => void
   /** Commit de arraste/redimensionamento da forma no mapa. */
   updateGeometry: (id: string, geometry: Omit<AreaPatch, "name">) => void
   removeArea: (id: string) => void
@@ -66,14 +71,20 @@ export function AreasProvider({ children }: { children: React.ReactNode }) {
     [activePoints, activeArea, points.length],
   )
 
+  // Novas áreas já nascem com cor própria, para se distinguirem das existentes.
+  const draftStyle = useMemo(
+    () => nextStyle(areas.map((area) => resolveAreaStyle(area).strokeColor)),
+    [areas],
+  )
+
   const createArea = useCallback(
     (area: AreaDraft) => {
-      const created = addArea(area)
+      const created = addArea({ style: draftStyle, ...area })
       setActiveAreaId(created.id)
       setDraft(null)
       return created
     },
-    [addArea],
+    [addArea, draftStyle],
   )
 
   const startDrawing = useCallback((kind: AreaKind) => setDraft(drawing.startDraft(kind)), [])
@@ -124,6 +135,13 @@ export function AreasProvider({ children }: { children: React.ReactNode }) {
     [updateArea],
   )
 
+  const updateStyle = useCallback(
+    (id: string, style: AreaStyle) => {
+      updateArea(id, { style })
+    },
+    [updateArea],
+  )
+
   const value: AreasContextType = {
     areas,
     activeArea,
@@ -139,9 +157,11 @@ export function AreasProvider({ children }: { children: React.ReactNode }) {
     finishDraft,
     canUndoDraft: drawing.canUndoDraft(draft),
     canFinishDraft: drawing.canFinishDraft(draft),
+    draftStyle,
     createArea,
     selectArea: setActiveAreaId,
     renameArea,
+    updateStyle,
     updateGeometry,
     removeArea,
   }

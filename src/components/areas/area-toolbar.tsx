@@ -5,6 +5,7 @@ import { Check, Circle as CircleIcon, Hexagon, Trash2, Undo2 } from "lucide-reac
 import { AreaInsightsCard } from "@/components/areas/area-insights-card"
 import { useAreas } from "@/components/areas/areas-provider"
 import { Button } from "@/components/ui/button"
+import { resolveAreaStyle } from "@/lib/area-style"
 import { cn } from "@/lib/utils"
 import type { DrawingDraft } from "@/types/area"
 
@@ -123,6 +124,16 @@ export function AreaToolbar() {
                       isActive && "bg-accent",
                     )}
                   >
+                    {/* A cor identifica a área na lista; o nome e a contagem seguem ao
+                        lado, para que a identidade nunca dependa só da cor. */}
+                    <span
+                      className="h-3 w-3 shrink-0 rounded-full border"
+                      style={{
+                        backgroundColor: resolveAreaStyle(area).fillColor,
+                        borderColor: resolveAreaStyle(area).strokeColor,
+                      }}
+                      aria-hidden
+                    />
                     <span className="min-w-0 flex-1 truncate text-xs text-foreground">{area.name}</span>
                     <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
                       {formatNumber(areaCounts[area.id] ?? 0)}
