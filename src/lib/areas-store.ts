@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react"
 
-import type { Area, AreaDraft, AreaPatch, AreaStyle, LatLng } from "@/types/area"
+import type { Area, AreaDraft, AreaPatch, AreaRouteSettings, AreaStyle, LatLng } from "@/types/area"
 
 const STORAGE_KEY = "geo-locate:areas:v1"
 
@@ -55,15 +55,29 @@ function isAreaStyle(value: unknown): value is AreaStyle {
   )
 }
 
+function isRouteSettings(value: unknown): value is AreaRouteSettings {
+  if (!value || typeof value !== "object") return false
+  const candidate = value as Record<string, unknown>
+
+  return (
+    typeof candidate.enabled === "boolean" &&
+    typeof candidate.roundTrip === "boolean" &&
+    typeof candidate.useRoads === "boolean" &&
+    (candidate.origin === null || isLatLng(candidate.origin))
+  )
+}
+
 /**
- * Uma aparência corrompida não invalida a área: o campo é descartado e a área volta ao
- * estilo padrão, em vez de o cliente desaparecer do mapa por causa de uma cor inválida.
+ * Um campo opcional corrompido não invalida a área: ele é descartado e a área volta ao
+ * padrão, em vez de o território desaparecer do mapa por causa de uma cor inválida.
  */
 function normalizeArea(area: Area): Area {
-  if (area.style && !isAreaStyle(area.style)) {
-    return { ...area, style: undefined }
-  }
-  return area
+  const normalized = { ...area }
+
+  if (normalized.style && !isAreaStyle(normalized.style)) normalized.style = undefined
+  if (normalized.route && !isRouteSettings(normalized.route)) normalized.route = undefined
+
+  return normalized
 }
 
 function read(): Area[] {

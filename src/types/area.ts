@@ -13,12 +13,28 @@ export interface AreaStyle {
   strokeWeight: number
 }
 
+/**
+ * Configuração da rota de uma área. Só as preferências são salvas — a sequência em si é
+ * recalculada a partir dos clientes atuais, que são voláteis.
+ */
+export interface AreaRouteSettings {
+  enabled: boolean
+  /** Partida fixa (matriz, casa). Nulo deixa o algoritmo escolher por qual cliente começar. */
+  origin: LatLng | null
+  /** Fecha o ciclo, voltando ao ponto de partida. */
+  roundTrip: boolean
+  /** Traçado real por ruas via Directions, em vez de linha reta. Consome requisições. */
+  useRoads: boolean
+}
+
 interface AreaBase {
   id: string
   name: string
   createdAt: number
   /** Ausente nas áreas salvas antes deste campo existir — ver `resolveAreaStyle`. */
   style?: AreaStyle
+  /** Ausente até a rota ser configurada — ver `resolveRouteSettings`. */
+  route?: AreaRouteSettings
 }
 
 /** Área circular: o caso mais comum — "clientes num raio de X km daqui". */
@@ -64,6 +80,7 @@ export interface AreaPatch {
   radius?: number
   path?: LatLng[]
   style?: AreaStyle
+  route?: AreaRouteSettings
 }
 
 export const AREA_KIND_LABELS: Record<AreaKind, string> = {
