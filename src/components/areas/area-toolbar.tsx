@@ -11,8 +11,8 @@ import type { AreaKind } from "@/types/area"
 const formatNumber = (value: number) => value.toLocaleString("pt-BR")
 
 const DRAW_HINTS: Record<AreaKind, string> = {
-  circle: "Clique no centro e arraste para definir o raio.",
-  polygon: "Clique para marcar os vértices e feche no primeiro ponto.",
+  circle: "Clique no centro, depois clique de novo para definir o raio. Esc cancela.",
+  polygon: "Clique para marcar os vértices. Feche no primeiro ponto ou aperte Enter. Esc cancela.",
 }
 
 export function AreaToolbar() {

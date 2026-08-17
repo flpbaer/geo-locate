@@ -1,9 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
-import { Circle, DrawingManager, Polygon } from "@react-google-maps/api"
+import { Circle, Polygon } from "@react-google-maps/api"
 import { useCallback, useEffect, useRef, useState } from "react"
 
+import { AreaDrawing } from "@/components/areas/area-drawing"
 import { useAreas } from "@/components/areas/areas-provider"
 import type { AreaPatch, CircleArea, LatLng, PolygonArea } from "@/types/area"
 
@@ -14,14 +14,16 @@ const IDLE_STROKE = "#94a3b8"
 const EPSILON_DEGREES = 1e-7
 const EPSILON_METERS = 0.01
 
-function shapeOptions(isActive: boolean) {
+/** `isDrawing` desliga o clique nas formas já existentes: durante o desenho elas
+ *  engoliriam os cliques destinados ao mapa. */
+function shapeOptions(isActive: boolean, isDrawing = false) {
   return {
     strokeColor: isActive ? ACTIVE_STROKE : IDLE_STROKE,
     strokeOpacity: isActive ? 0.9 : 0.55,
     strokeWeight: isActive ? 2 : 1.5,
     fillColor: isActive ? ACTIVE_STROKE : IDLE_STROKE,
     fillOpacity: isActive ? 0.12 : 0.06,
-    clickable: true,
+    clickable: !isDrawing,
     zIndex: isActive ? 2 : 1,
   }
 }
@@ -63,11 +65,12 @@ function useDebouncedCommit(delay = 250) {
 interface ShapeProps<T> {
   area: T
   isActive: boolean
+  isDrawing: boolean
   onSelect: (id: string) => void
   onCommit: (id: string, geometry: Omit<AreaPatch, "name">) => void
 }
 
-function AreaCircleShape({ area, isActive, onSelect, onCommit }: ShapeProps<CircleArea>) {
+function AreaCircleShape({ area, isActive, isDrawing, onSelect, onCommit }: ShapeProps<CircleArea>) {
   const instance = useRef<google.maps.Circle | null>(null)
   const schedule = useDebouncedCommit()
 
@@ -92,9 +95,9 @@ function AreaCircleShape({ area, isActive, onSelect, onCommit }: ShapeProps<Circ
     <Circle
       center={area.center}
       radius={area.radius}
-      editable={isActive}
-      draggable={isActive}
-      options={shapeOptions(isActive)}
+      editable={isActive && !isDrawing}
+      draggable={isActive && !isDrawing}
+      options={shapeOptions(isActive, isDrawing)}
       onLoad={(circle) => (instance.current = circle)}
       onUnmount={() => (instance.current = null)}
       onClick={() => onSelect(area.id)}
@@ -104,7 +107,7 @@ function AreaCircleShape({ area, isActive, onSelect, onCommit }: ShapeProps<Circ
   )
 }
 
-function AreaPolygonShape({ area, isActive, onSelect, onCommit }: ShapeProps<PolygonArea>) {
+function AreaPolygonShape({ area, isActive, isDrawing, onSelect, onCommit }: ShapeProps<PolygonArea>) {
   const [instance, setInstance] = useState<google.maps.Polygon | null>(null)
   const schedule = useDebouncedCommit()
 
@@ -146,9 +149,9 @@ function AreaPolygonShape({ area, isActive, onSelect, onCommit }: ShapeProps<Pol
   return (
     <Polygon
       path={area.path}
-      editable={isActive}
-      draggable={isActive}
-      options={shapeOptions(isActive)}
+      editable={isActive && !isDrawing}
+      draggable={isActive && !isDrawing}
+      options={shapeOptions(isActive, isDrawing)}
       onLoad={setInstance}
       onUnmount={() => setInstance(null)}
       onClick={() => onSelect(area.id)}
@@ -160,55 +163,12 @@ function AreaPolygonShape({ area, isActive, onSelect, onCommit }: ShapeProps<Pol
 export function AreaOverlays() {
   const { areas, activeArea, drawingKind, createArea, selectArea, updateGeometry, cancelDrawing } = useAreas()
 
-  // A forma criada pelo DrawingManager é descartada: quem desenha no mapa é o
-  // <Circle>/<Polygon> controlado, alimentado pela área salva.
-  const handleCircleComplete = useCallback(
-    (circle: google.maps.Circle) => {
-      const center = circle.getCenter()
-      const radius = circle.getRadius()
-      circle.setMap(null)
-
-      if (!center || !radius) {
-        cancelDrawing()
-        return
-      }
-
-      createArea({ kind: "circle", center: { lat: center.lat(), lng: center.lng() }, radius })
-    },
-    [createArea, cancelDrawing],
-  )
-
-  const handlePolygonComplete = useCallback(
-    (polygon: google.maps.Polygon) => {
-      const path: LatLng[] = polygon
-        .getPath()
-        .getArray()
-        .map((vertex) => ({ lat: vertex.lat(), lng: vertex.lng() }))
-      polygon.setMap(null)
-
-      if (path.length < 3) {
-        cancelDrawing()
-        return
-      }
-
-      createArea({ kind: "polygon", path })
-    },
-    [createArea, cancelDrawing],
-  )
+  const isDrawing = drawingKind !== null
 
   return (
     <>
       {drawingKind && (
-        <DrawingManager
-          drawingMode={drawingKind as any}
-          options={{
-            drawingControl: false,
-            circleOptions: shapeOptions(true),
-            polygonOptions: shapeOptions(true),
-          }}
-          onCircleComplete={handleCircleComplete}
-          onPolygonComplete={handlePolygonComplete}
-        />
+        <AreaDrawing key={drawingKind} kind={drawingKind} onComplete={createArea} onCancel={cancelDrawing} />
       )}
 
       {areas.map((area) =>
@@ -217,6 +177,7 @@ export function AreaOverlays() {
             key={area.id}
             area={area}
             isActive={activeArea?.id === area.id}
+            isDrawing={isDrawing}
             onSelect={selectArea}
             onCommit={updateGeometry}
           />
@@ -225,6 +186,7 @@ export function AreaOverlays() {
             key={area.id}
             area={area}
             isActive={activeArea?.id === area.id}
+            isDrawing={isDrawing}
             onSelect={selectArea}
             onCommit={updateGeometry}
           />
