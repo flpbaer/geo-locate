@@ -4,7 +4,10 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react"
 import { GoogleMap, Marker } from "@react-google-maps/api"
 import { useMapPoints } from "@/components/map-points-provider"
+import { AreaOverlays } from "@/components/areas/area-overlays"
+import { useAreas } from "@/components/areas/areas-provider"
 import { ClientDetailsSheet } from "@/components/client-details-sheet"
+import { areaBounds } from "@/lib/geo"
 import type { Point } from "@/types/point"
 
 export const defaultMapContainerStyle = {
@@ -45,6 +48,7 @@ const OptimizedMarker = React.memo(
 OptimizedMarker.displayName = "OptimizedMarker"
 const MapComponent = () => {
   const { points: importedPoints, selectedPoint, selectPoint } = useMapPoints()
+  const { activeArea, activePoints } = useAreas()
   const [detailsPointId, setDetailsPointId] = useState<string | null>(null)
   const [mapCenter, setMapCenter] = useState(defaultMapCenter)
   const [mapZoom, setMapZoom] = useState(5)
@@ -58,7 +62,7 @@ const MapComponent = () => {
   )
 
   const markerIcons = useMemo(() => {
-    if (typeof window === "undefined" || !window.google) return { default: null, selected: null }
+    if (typeof window === "undefined" || !window.google) return { default: null, selected: null, muted: null }
 
     const defaultIcon = {
       url:
@@ -87,8 +91,23 @@ const MapComponent = () => {
       anchor: new window.google.maps.Point(16, 32),
     }
 
-    return { default: defaultIcon, selected: selectedIcon }
+    // Usado nos clientes de fora da área ativa, para que os de dentro se destaquem.
+    const mutedIcon = {
+      url:
+        "data:image/svg+xml;charset=UTF-8," +
+        encodeURIComponent(`
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#94A3B8" fill-opacity="0.55"/>
+          </svg>
+        `),
+      scaledSize: new window.google.maps.Size(18, 18),
+      anchor: new window.google.maps.Point(9, 18),
+    }
+
+    return { default: defaultIcon, selected: selectedIcon, muted: mutedIcon }
   }, [])
+
+  const activePointIds = useMemo(() => new Set(activePoints.map((point) => point.id)), [activePoints])
 
   const adjustInitialMapView = useCallback(() => {
     if (importedPoints.length === 0 || hasInitializedView) return
@@ -157,6 +176,14 @@ const MapComponent = () => {
     }
   }, [importedPoints.length])
 
+  // Selecionar uma área enquadra o mapa nela. Depende só do id: ajustar a forma
+  // arrastando as bordas não deve reenquadrar o mapa no meio da interação.
+  useEffect(() => {
+    if (!map || !activeArea) return
+    map.fitBounds(areaBounds(activeArea), 64)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, activeArea?.id])
+
   const handleMarkerClick = useCallback(
     (point: Point) => {
       selectPoint(point)
@@ -195,9 +222,16 @@ const MapComponent = () => {
         disableDefaultUI: true
         }}
       >
+        <AreaOverlays />
+
         {importedPoints.map((point) => {
           const isSelected = selectedPoint?.id === point.id
-          const icon = isSelected ? markerIcons.selected : markerIcons.default
+          const isOutsideActiveArea = activeArea !== null && !activePointIds.has(point.id)
+          const icon = isSelected
+            ? markerIcons.selected
+            : isOutsideActiveArea
+              ? markerIcons.muted
+              : markerIcons.default
 
           return (
             <OptimizedMarker
