@@ -48,7 +48,7 @@ const OptimizedMarker = React.memo(
 OptimizedMarker.displayName = "OptimizedMarker"
 const MapComponent = () => {
   const { points: importedPoints, selectedPoint, selectPoint } = useMapPoints()
-  const { activeArea, activePoints } = useAreas()
+  const { activeArea, activePoints, activeRoute } = useAreas()
   const [detailsPointId, setDetailsPointId] = useState<string | null>(null)
   const [mapCenter, setMapCenter] = useState(defaultMapCenter)
   const [mapZoom, setMapZoom] = useState(5)
@@ -108,6 +108,13 @@ const MapComponent = () => {
   }, [])
 
   const activePointIds = useMemo(() => new Set(activePoints.map((point) => point.id)), [activePoints])
+
+  // Paradas da rota já são desenhadas numeradas pelo RouteOverlay — o pino padrão
+  // delas ficaria empilhado por baixo.
+  const routeStopIds = useMemo(
+    () => new Set(activeRoute?.stops.map((stop) => stop.point.id) ?? []),
+    [activeRoute],
+  )
 
   const adjustInitialMapView = useCallback(() => {
     if (importedPoints.length === 0 || hasInitializedView) return
@@ -225,6 +232,8 @@ const MapComponent = () => {
         <AreaOverlays />
 
         {importedPoints.map((point) => {
+          if (routeStopIds.has(point.id)) return null
+
           const isSelected = selectedPoint?.id === point.id
           const isOutsideActiveArea = activeArea !== null && !activePointIds.has(point.id)
           const icon = isSelected

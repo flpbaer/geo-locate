@@ -4,11 +4,13 @@ import { Check, Download, Pencil, Trash2, X } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { AreaAppearance } from "@/components/areas/area-appearance"
+import { AreaRoutePanel } from "@/components/areas/area-route-panel"
 import { useAreas } from "@/components/areas/areas-provider"
 import { useMapPoints } from "@/components/map-points-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatAreaKm2, formatDistance } from "@/lib/geo"
 import { AREA_KIND_LABELS } from "@/types/area"
 import type { LocationStat } from "@/usecases/points-usecase"
@@ -153,25 +155,42 @@ export function AreaInsightsCard() {
         </Button>
       </header>
 
-      <div className="max-h-[calc(100vh-19rem)] space-y-4 overflow-y-auto px-4 py-3">
-        <AreaAppearance area={activeArea} onChange={(style) => updateStyle(activeArea.id, style)} />
+      <Tabs defaultValue="insights">
+        <TabsList className="mx-4 mt-3 grid w-[calc(100%-2rem)] grid-cols-2">
+          <TabsTrigger value="insights" className="cursor-pointer text-[11px]">
+            Insights
+          </TabsTrigger>
+          <TabsTrigger value="rota" className="cursor-pointer text-[11px]">
+            Rota
+          </TabsTrigger>
+        </TabsList>
 
-        <div className="rounded-lg border bg-background px-3 py-3">
-          <p className="text-[11px] font-medium text-muted-foreground">Clientes na área</p>
-          <p className="mt-0.5 text-4xl font-semibold leading-none tabular-nums text-foreground">
-            {formatNumber(activeInsights.total)}
-          </p>
-          <p className="mt-1.5 text-[11px] text-muted-foreground">
-            {formatPercentage(activeInsights.shareOfBase)} da base completa
-          </p>
-        </div>
+        <TabsContent value="rota" className="max-h-[calc(100vh-22rem)] overflow-y-auto px-4 py-3">
+          <AreaRoutePanel />
+        </TabsContent>
 
-        {activeInsights.total === 0 ? (
-          <p className="py-4 text-center text-xs text-muted-foreground">
-            Nenhum cliente nesta área. Arraste as bordas no mapa para ampliá-la.
-          </p>
-        ) : (
-          <>
+        <TabsContent
+          value="insights"
+          className="max-h-[calc(100vh-22rem)] space-y-4 overflow-y-auto px-4 py-3"
+        >
+          <AreaAppearance area={activeArea} onChange={(style) => updateStyle(activeArea.id, style)} />
+
+          <div className="rounded-lg border bg-background px-3 py-3">
+            <p className="text-[11px] font-medium text-muted-foreground">Clientes na área</p>
+            <p className="mt-0.5 text-4xl font-semibold leading-none tabular-nums text-foreground">
+              {formatNumber(activeInsights.total)}
+            </p>
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              {formatPercentage(activeInsights.shareOfBase)} da base completa
+            </p>
+          </div>
+
+          {activeInsights.total === 0 ? (
+            <p className="py-4 text-center text-xs text-muted-foreground">
+              Nenhum cliente nesta área. Arraste as bordas no mapa para ampliá-la.
+            </p>
+          ) : (
+            <>
             <div className="grid grid-cols-2 gap-2">
               <Metric label="Extensão" value={formatAreaKm2(activeInsights.sizeKm2)} />
               <Metric
@@ -205,15 +224,16 @@ export function AreaInsightsCard() {
             <MiniRanking title="Estados" data={location.states} />
             <MiniRanking title="Categorias" data={activeInsights.categories} />
 
-            {location.unlocated > 0 && (
-              <p className="text-[11px] text-muted-foreground">
-                {formatNumber(location.unlocated)} cliente(s) sem cidade/estado identificados — rode a
-                identificação no painel de insights para completar os rankings.
-              </p>
-            )}
-          </>
-        )}
-      </div>
+              {location.unlocated > 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  {formatNumber(location.unlocated)} cliente(s) sem cidade/estado identificados — rode a
+                  identificação no painel de insights para completar os rankings.
+                </p>
+              )}
+            </>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <footer className="flex items-center gap-2 border-t px-4 py-2.5">
         <Button

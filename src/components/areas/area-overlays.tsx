@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import { AreaDrawing } from "@/components/areas/area-drawing"
 import { useAreas } from "@/components/areas/areas-provider"
+import { RouteOverlay } from "@/components/areas/route-overlay"
 import { resolveAreaStyle } from "@/lib/area-style"
 import type { AreaPatch, AreaStyle, CircleArea, LatLng, PolygonArea } from "@/types/area"
 
@@ -165,13 +166,15 @@ function AreaPolygonShape({ area, isActive, isDrawing, onSelect, onCommit }: Sha
 }
 
 export function AreaOverlays() {
-  const { areas, activeArea, drawingKind, selectArea, updateGeometry } = useAreas()
+  const { areas, activeArea, drawingKind, isPickingOrigin, selectArea, updateGeometry } = useAreas()
 
-  const isDrawing = drawingKind !== null
+  // Escolher a origem também captura cliques do mapa: as formas não podem interceptá-los.
+  const isDrawing = drawingKind !== null || isPickingOrigin
 
   return (
     <>
       {drawingKind && <AreaDrawing key={drawingKind} />}
+      <RouteOverlay />
 
       {areas.map((area) =>
         area.kind === "circle" ? (
