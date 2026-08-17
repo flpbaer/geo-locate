@@ -7,9 +7,31 @@ import { useMapPoints } from "@/components/map-points-provider"
 import { nextStyle, resolveAreaStyle } from "@/lib/area-style"
 import { useStoredAreas } from "@/lib/areas-store"
 import * as drawing from "@/lib/drawing-draft"
-import type { Area, AreaDraft, AreaKind, AreaPatch, AreaStyle, DrawingDraft, LatLng } from "@/types/area"
+import { solveRoute, type Route } from "@/lib/route"
+import type {
+  Area,
+  AreaDraft,
+  AreaKind,
+  AreaPatch,
+  AreaRouteSettings,
+  AreaStyle,
+  DrawingDraft,
+  LatLng,
+} from "@/types/area"
 import type { Point } from "@/types/point"
 import { areasUseCase, type AreaInsights } from "@/usecases/areas-usecase"
+
+const DEFAULT_ROUTE_SETTINGS: AreaRouteSettings = {
+  enabled: false,
+  origin: null,
+  roundTrip: false,
+  useRoads: false,
+}
+
+/** Áreas salvas antes da rota existir não têm o campo — caem no padrão. */
+export function resolveRouteSettings(area: Pick<Area, "route"> | null | undefined): AreaRouteSettings {
+  return area?.route ?? DEFAULT_ROUTE_SETTINGS
+}
 
 interface AreasContextType {
   areas: Area[]
@@ -40,6 +62,16 @@ interface AreasContextType {
   renameArea: (id: string, name: string) => void
   /** Troca a cor de borda, de fundo e a opacidade de uma área. */
   updateStyle: (id: string, style: AreaStyle) => void
+  /** Configuração de rota da área ativa. */
+  routeSettings: AreaRouteSettings
+  /** Sequência calculada para a área ativa, ou null quando a rota está desligada. */
+  activeRoute: Route | null
+  updateRouteSettings: (changes: Partial<AreaRouteSettings>) => void
+  /** Modo em que o próximo clique no mapa define a origem da rota. */
+  isPickingOrigin: boolean
+  startPickingOrigin: () => void
+  cancelPickingOrigin: () => void
+  setRouteOrigin: (origin: LatLng | null) => void
   /** Commit de arraste/redimensionamento da forma no mapa. */
   updateGeometry: (id: string, geometry: Omit<AreaPatch, "name">) => void
   removeArea: (id: string) => void
@@ -142,6 +174,44 @@ export function AreasProvider({ children }: { children: React.ReactNode }) {
     [updateArea],
   )
 
+  const [isPickingOrigin, setIsPickingOrigin] = useState(false)
+
+  // Trocar de área encerra a escolha de origem em andamento, que era da área anterior.
+  const selectArea = useCallback((id: string | null) => {
+    setActiveAreaId(id)
+    setIsPickingOrigin(false)
+  }, [])
+
+  const routeSettings = useMemo(() => resolveRouteSettings(activeArea), [activeArea])
+
+  const updateRouteSettings = useCallback(
+    (changes: Partial<AreaRouteSettings>) => {
+      if (!activeArea) return
+      updateArea(activeArea.id, { route: { ...resolveRouteSettings(activeArea), ...changes } })
+    },
+    [activeArea, updateArea],
+  )
+
+  const setRouteOrigin = useCallback(
+    (origin: LatLng | null) => {
+      updateRouteSettings({ origin })
+      setIsPickingOrigin(false)
+    },
+    [updateRouteSettings],
+  )
+
+  /**
+   * A sequência é derivada, nunca salva: os clientes são voláteis, então guardar a ordem
+   * deixaria referências órfãs depois de um reload.
+   */
+  const activeRoute = useMemo(
+    () =>
+      routeSettings.enabled
+        ? solveRoute(activePoints, { origin: routeSettings.origin, roundTrip: routeSettings.roundTrip })
+        : null,
+    [routeSettings.enabled, routeSettings.origin, routeSettings.roundTrip, activePoints],
+  )
+
   const value: AreasContextType = {
     areas,
     activeArea,
@@ -159,9 +229,16 @@ export function AreasProvider({ children }: { children: React.ReactNode }) {
     canFinishDraft: drawing.canFinishDraft(draft),
     draftStyle,
     createArea,
-    selectArea: setActiveAreaId,
+    selectArea,
     renameArea,
     updateStyle,
+    routeSettings,
+    activeRoute,
+    updateRouteSettings,
+    isPickingOrigin,
+    startPickingOrigin: () => setIsPickingOrigin(true),
+    cancelPickingOrigin: () => setIsPickingOrigin(false),
+    setRouteOrigin,
     updateGeometry,
     removeArea,
   }
