@@ -33,6 +33,18 @@ type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K>
 /** Geometria de uma área nova, antes de receber id/nome/data. */
 export type AreaDraft = DistributiveOmit<Area, "id" | "name" | "createdAt"> & { name?: string }
 
+/**
+ * Desenho em andamento. Fica no provider (e não no componente do mapa) para que a
+ * toolbar possa mostrar o progresso e oferecer desfazer/concluir/descartar.
+ */
+export interface DrawingDraft {
+  kind: AreaKind
+  /** Centro do círculo, depois do primeiro clique. */
+  center: LatLng | null
+  /** Vértices do polígono, na ordem em que foram marcados. */
+  vertices: LatLng[]
+}
+
 /** Alterações vindas do mapa (arraste/redimensionamento) ou da renomeação. */
 export interface AreaPatch {
   name?: string

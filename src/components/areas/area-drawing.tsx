@@ -1,10 +1,11 @@
 "use client"
 
 import { Circle, Marker, Polygon, Polyline, useGoogleMap } from "@react-google-maps/api"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
+import { useAreas } from "@/components/areas/areas-provider"
 import { distanceInMeters } from "@/lib/geo"
-import type { AreaDraft, AreaKind, LatLng } from "@/types/area"
+import type { LatLng } from "@/types/area"
 
 const PREVIEW_STROKE = "#2a78d6"
 
@@ -34,10 +35,10 @@ function toLatLng(event: google.maps.MapMouseEvent): LatLng | null {
   return { lat: event.latLng.lat(), lng: event.latLng.lng() }
 }
 
-interface AreaDrawingProps {
-  kind: AreaKind
-  onComplete: (draft: AreaDraft) => void
-  onCancel: () => void
+/** Ignora atalhos enquanto o foco está num campo de texto (ex.: renomear área). */
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
 }
 
 /**
@@ -47,31 +48,19 @@ interface AreaDrawingProps {
  * descontinuada em ago/2025, indisponível desde mai/2026). `Circle` e `Polygon` são
  * overlays do core e seguem valendo — só a captura do gesto precisou ser reescrita.
  *
- * Círculo: clique define o centro, segundo clique define o raio.
- * Polígono: cliques marcam vértices; fecha no primeiro vértice ou com Enter.
- * Esc cancela nos dois casos.
+ * Os pontos marcados vivem no AreasProvider, para que a toolbar possa desfazer e
+ * concluir; aqui fica só o cursor, que muda a cada mousemove e não deve propagar.
  */
-export function AreaDrawing({ kind, onComplete, onCancel }: AreaDrawingProps) {
+export function AreaDrawing() {
   const map = useGoogleMap()
+  const { draft, addDraftPoint, undoDraftPoint, finishDraft, cancelDrawing } = useAreas()
 
-  // Refs espelham o estado para que os listeners fiquem anexados uma única vez: o
-  // cursor muda a cada mousemove e reanexar listeners nesse ritmo seria custoso.
-  const centerRef = useRef<LatLng | null>(null)
-  const verticesRef = useRef<LatLng[]>([])
-
-  const [center, setCenter] = useState<LatLng | null>(null)
-  const [vertices, setVertices] = useState<LatLng[]>([])
   const [cursor, setCursor] = useState<LatLng | null>(null)
 
-  const completeRef = useRef(onComplete)
-  const cancelRef = useRef(onCancel)
-  completeRef.current = onComplete
-  cancelRef.current = onCancel
-
-  const finishPolygon = useCallback(() => {
-    if (verticesRef.current.length < 3) return
-    completeRef.current({ kind: "polygon", path: verticesRef.current })
-  }, [])
+  // Os listeners são anexados uma única vez; o ref dá acesso ao estado mais recente
+  // sem reanexar a cada ponto marcado.
+  const latest = useRef({ draft, addDraftPoint, undoDraftPoint, finishDraft, cancelDrawing })
+  latest.current = { draft, addDraftPoint, undoDraftPoint, finishDraft, cancelDrawing }
 
   // Cursor de precisão, e sem zoom no duplo clique — que atrapalharia marcar vértices.
   useEffect(() => {
@@ -88,34 +77,20 @@ export function AreaDrawing({ kind, onComplete, onCancel }: AreaDrawingProps) {
       const point = toLatLng(event)
       if (!point) return
 
-      if (kind === "circle") {
-        if (!centerRef.current) {
-          centerRef.current = point
-          setCenter(point)
-          return
-        }
+      const current = latest.current.draft
+      const first = current?.vertices[0]
 
-        const radius = distanceInMeters(centerRef.current, point)
-        if (radius <= 0) return
-
-        completeRef.current({ kind: "circle", center: centerRef.current, radius })
-        return
-      }
-
-      const first = verticesRef.current[0]
-
-      if (first && verticesRef.current.length >= 3) {
-        const zoom = map.getZoom() ?? 10
-        const threshold = CLOSE_HANDLE_PIXELS * metersPerPixel(point.lat, zoom)
+      // Clicar sobre o primeiro vértice fecha o polígono em vez de marcar outro ponto.
+      if (current?.kind === "polygon" && first && current.vertices.length >= 3) {
+        const threshold = CLOSE_HANDLE_PIXELS * metersPerPixel(point.lat, map.getZoom() ?? 10)
 
         if (distanceInMeters(point, first) <= threshold) {
-          finishPolygon()
+          latest.current.finishDraft()
           return
         }
       }
 
-      verticesRef.current = [...verticesRef.current, point]
-      setVertices(verticesRef.current)
+      latest.current.addDraftPoint(point)
     }
 
     const handleMouseMove = (event: google.maps.MapMouseEvent) => {
@@ -129,51 +104,70 @@ export function AreaDrawing({ kind, onComplete, onCancel }: AreaDrawingProps) {
     ]
 
     return () => listeners.forEach((listener) => listener.remove())
-  }, [map, kind, finishPolygon])
+  }, [map])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (isTypingTarget(event.target)) return
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+        event.preventDefault()
+        latest.current.undoDraftPoint()
+        return
+      }
+
       if (event.key === "Escape") {
         event.preventDefault()
-        cancelRef.current()
+        latest.current.cancelDrawing()
+        return
       }
-      if (event.key === "Enter" && kind === "polygon") {
+
+      if (event.key === "Enter") {
         event.preventDefault()
-        finishPolygon()
+        latest.current.finishDraft()
       }
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [kind, finishPolygon])
+  }, [])
 
-  if (kind === "circle") {
-    if (!center) return null
+  if (!draft) return null
 
-    const radius = cursor ? distanceInMeters(center, cursor) : 0
+  if (draft.kind === "circle") {
+    if (!draft.center) return null
+
+    const radius = cursor ? distanceInMeters(draft.center, cursor) : 0
 
     return (
       <>
-        <Marker position={center} options={passthroughMarker} />
-        {radius > 0 && <Circle center={center} radius={radius} options={previewOptions} />}
+        <Marker position={draft.center} options={passthroughMarker} />
+        {radius > 0 && <Circle center={draft.center} radius={radius} options={previewOptions} />}
       </>
     )
   }
 
-  if (vertices.length === 0) return null
+  if (draft.vertices.length === 0) return null
 
-  // Enquanto tem menos de 3 vértices, só a linha faz sentido; depois o preenchimento
-  // mostra a área que será criada.
-  const trail = cursor ? [...vertices, cursor] : vertices
+  // Com menos de 3 vértices só a linha faz sentido; depois o preenchimento mostra a
+  // área que será criada.
+  const trail = cursor ? [...draft.vertices, cursor] : draft.vertices
 
   return (
     <>
-      {vertices.length >= 3 ? (
+      {draft.vertices.length >= 3 ? (
         <Polygon path={trail} options={previewOptions} />
       ) : (
         <Polyline path={trail} options={previewOptions} />
       )}
-      <Marker position={vertices[0]} options={passthroughMarker} title="Clique aqui para fechar a área" />
+      {draft.vertices.map((vertex, index) => (
+        <Marker
+          key={`${vertex.lat},${vertex.lng},${index}`}
+          position={vertex}
+          options={passthroughMarker}
+          title={index === 0 ? "Clique aqui para fechar a área" : undefined}
+        />
+      ))}
     </>
   )
 }

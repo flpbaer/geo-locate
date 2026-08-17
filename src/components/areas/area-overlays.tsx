@@ -161,15 +161,13 @@ function AreaPolygonShape({ area, isActive, isDrawing, onSelect, onCommit }: Sha
 }
 
 export function AreaOverlays() {
-  const { areas, activeArea, drawingKind, createArea, selectArea, updateGeometry, cancelDrawing } = useAreas()
+  const { areas, activeArea, drawingKind, selectArea, updateGeometry } = useAreas()
 
   const isDrawing = drawingKind !== null
 
   return (
     <>
-      {drawingKind && (
-        <AreaDrawing key={drawingKind} kind={drawingKind} onComplete={createArea} onCancel={cancelDrawing} />
-      )}
+      {drawingKind && <AreaDrawing key={drawingKind} />}
 
       {areas.map((area) =>
         area.kind === "circle" ? (
