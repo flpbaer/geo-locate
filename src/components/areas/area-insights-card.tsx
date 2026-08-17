@@ -3,6 +3,7 @@
 import { Check, Download, Pencil, Trash2, X } from "lucide-react"
 import { useEffect, useState } from "react"
 
+import { AreaAppearance } from "@/components/areas/area-appearance"
 import { useAreas } from "@/components/areas/areas-provider"
 import { useMapPoints } from "@/components/map-points-provider"
 import { Badge } from "@/components/ui/badge"
@@ -60,7 +61,7 @@ function MiniRanking({ title, data, limit = 3 }: { title: string; data: Location
 }
 
 export function AreaInsightsCard() {
-  const { activeArea, activeInsights, activePoints, renameArea, removeArea, selectArea } = useAreas()
+  const { activeArea, activeInsights, activePoints, renameArea, removeArea, selectArea, updateStyle } = useAreas()
   const { exportToCSV } = useMapPoints()
 
   const [isEditingName, setIsEditingName] = useState(false)
@@ -153,6 +154,8 @@ export function AreaInsightsCard() {
       </header>
 
       <div className="max-h-[calc(100vh-19rem)] space-y-4 overflow-y-auto px-4 py-3">
+        <AreaAppearance area={activeArea} onChange={(style) => updateStyle(activeArea.id, style)} />
+
         <div className="rounded-lg border bg-background px-3 py-3">
           <p className="text-[11px] font-medium text-muted-foreground">Clientes na área</p>
           <p className="mt-0.5 text-4xl font-semibold leading-none tabular-nums text-foreground">

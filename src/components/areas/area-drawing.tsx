@@ -5,9 +5,7 @@ import { useEffect, useRef, useState } from "react"
 
 import { useAreas } from "@/components/areas/areas-provider"
 import { distanceInMeters } from "@/lib/geo"
-import type { LatLng } from "@/types/area"
-
-const PREVIEW_STROKE = "#2a78d6"
+import type { AreaStyle, LatLng } from "@/types/area"
 
 /** Distância, em pixels de tela, para um clique contar como "no primeiro vértice". */
 const CLOSE_HANDLE_PIXELS = 14
@@ -15,14 +13,17 @@ const CLOSE_HANDLE_PIXELS = 14
 /** Marcadores de apoio não podem engolir o clique destinado ao mapa. */
 const passthroughMarker = { clickable: false }
 
-const previewOptions = {
-  strokeColor: PREVIEW_STROKE,
-  strokeOpacity: 0.9,
-  strokeWeight: 2,
-  fillColor: PREVIEW_STROKE,
-  fillOpacity: 0.12,
-  clickable: false,
-  zIndex: 3,
+/** O preview já usa a cor que a área vai receber ao ser criada. */
+function previewOptions(style: AreaStyle) {
+  return {
+    strokeColor: style.strokeColor,
+    strokeOpacity: 0.9,
+    strokeWeight: style.strokeWeight,
+    fillColor: style.fillColor,
+    fillOpacity: style.fillOpacity,
+    clickable: false,
+    zIndex: 3,
+  }
 }
 
 /** Escala do mapa na latitude e zoom atuais — usada para o alvo de fechamento em pixels. */
@@ -53,7 +54,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
  */
 export function AreaDrawing() {
   const map = useGoogleMap()
-  const { draft, addDraftPoint, undoDraftPoint, finishDraft, cancelDrawing } = useAreas()
+  const { draft, draftStyle, addDraftPoint, undoDraftPoint, finishDraft, cancelDrawing } = useAreas()
 
   const [cursor, setCursor] = useState<LatLng | null>(null)
 
@@ -142,7 +143,7 @@ export function AreaDrawing() {
     return (
       <>
         <Marker position={draft.center} options={passthroughMarker} />
-        {radius > 0 && <Circle center={draft.center} radius={radius} options={previewOptions} />}
+        {radius > 0 && <Circle center={draft.center} radius={radius} options={previewOptions(draftStyle)} />}
       </>
     )
   }
@@ -156,9 +157,9 @@ export function AreaDrawing() {
   return (
     <>
       {draft.vertices.length >= 3 ? (
-        <Polygon path={trail} options={previewOptions} />
+        <Polygon path={trail} options={previewOptions(draftStyle)} />
       ) : (
-        <Polyline path={trail} options={previewOptions} />
+        <Polyline path={trail} options={previewOptions(draftStyle)} />
       )}
       {draft.vertices.map((vertex, index) => (
         <Marker
