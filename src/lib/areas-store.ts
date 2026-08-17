@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react"
 
-import type { Area, AreaDraft, AreaPatch, LatLng } from "@/types/area"
+import type { Area, AreaDraft, AreaPatch, AreaStyle, LatLng } from "@/types/area"
 
 const STORAGE_KEY = "geo-locate:areas:v1"
 
@@ -36,6 +36,36 @@ function isArea(value: unknown): value is Area {
   return false
 }
 
+function isHexColor(value: unknown): boolean {
+  return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value)
+}
+
+function isAreaStyle(value: unknown): value is AreaStyle {
+  if (!value || typeof value !== "object") return false
+  const candidate = value as Record<string, unknown>
+
+  return (
+    isHexColor(candidate.strokeColor) &&
+    isHexColor(candidate.fillColor) &&
+    typeof candidate.fillOpacity === "number" &&
+    candidate.fillOpacity >= 0 &&
+    candidate.fillOpacity <= 1 &&
+    typeof candidate.strokeWeight === "number" &&
+    candidate.strokeWeight > 0
+  )
+}
+
+/**
+ * Uma aparência corrompida não invalida a área: o campo é descartado e a área volta ao
+ * estilo padrão, em vez de o cliente desaparecer do mapa por causa de uma cor inválida.
+ */
+function normalizeArea(area: Area): Area {
+  if (area.style && !isAreaStyle(area.style)) {
+    return { ...area, style: undefined }
+  }
+  return area
+}
+
 function read(): Area[] {
   if (typeof window === "undefined") return EMPTY
 
@@ -46,7 +76,7 @@ function read(): Area[] {
     const parsed: unknown = JSON.parse(stored)
     if (!Array.isArray(parsed)) return EMPTY
 
-    const areas = parsed.filter(isArea)
+    const areas = parsed.filter(isArea).map(normalizeArea)
     return areas.length > 0 ? areas : EMPTY
   } catch {
     return EMPTY

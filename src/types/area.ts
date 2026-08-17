@@ -3,24 +3,36 @@ export interface LatLng {
   lng: number
 }
 
-/** Área circular: o caso mais comum — "clientes num raio de X km daqui". */
-export interface CircleArea {
+/** Aparência da forma no mapa, editável por área. */
+export interface AreaStyle {
+  strokeColor: string
+  fillColor: string
+  /** Opacidade do preenchimento, de 0 a 1. */
+  fillOpacity: number
+  /** Espessura da borda em pixels. */
+  strokeWeight: number
+}
+
+interface AreaBase {
   id: string
   name: string
+  createdAt: number
+  /** Ausente nas áreas salvas antes deste campo existir — ver `resolveAreaStyle`. */
+  style?: AreaStyle
+}
+
+/** Área circular: o caso mais comum — "clientes num raio de X km daqui". */
+export interface CircleArea extends AreaBase {
   kind: "circle"
   center: LatLng
   /** Raio em metros. */
   radius: number
-  createdAt: number
 }
 
 /** Área livre, para territórios que não cabem num círculo (bairro, zona, carteira). */
-export interface PolygonArea {
-  id: string
-  name: string
+export interface PolygonArea extends AreaBase {
   kind: "polygon"
   path: LatLng[]
-  createdAt: number
 }
 
 export type Area = CircleArea | PolygonArea
@@ -45,12 +57,13 @@ export interface DrawingDraft {
   vertices: LatLng[]
 }
 
-/** Alterações vindas do mapa (arraste/redimensionamento) ou da renomeação. */
+/** Alterações vindas do mapa (arraste/redimensionamento), da renomeação ou da aparência. */
 export interface AreaPatch {
   name?: string
   center?: LatLng
   radius?: number
   path?: LatLng[]
+  style?: AreaStyle
 }
 
 export const AREA_KIND_LABELS: Record<AreaKind, string> = {
