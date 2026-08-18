@@ -14,7 +14,9 @@ import type { Point } from "@/types/point"
 
 export const defaultMapContainerStyle = {
   width: "100%",
-  height: "100vh",
+  // 100% do pai (que já é a altura real da janela) em vez de 100vh: no celular a barra
+  // de endereço faz 100vh estourar a tela e o mapa passa a rolar.
+  height: "100%",
   borderRadius: "4px",
 }
 
@@ -239,7 +241,10 @@ const MapComponent = () => {
         options={{
           zoomControl: true,
           mapTypeControl: true,
-        disableDefaultUI: true
+          disableDefaultUI: true,
+          // A página não rola, então um dedo pode arrastar o mapa: sem "greedy" o
+          // celular exige dois dedos e mostra o aviso por cima.
+          gestureHandling: "greedy",
         }}
       >
         <AreaOverlays />
