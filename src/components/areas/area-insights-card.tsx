@@ -95,7 +95,7 @@ export function AreaInsightsCard() {
   }
 
   return (
-    <div className="w-[320px] overflow-hidden rounded-xl border bg-card shadow-lg">
+    <div className="w-full overflow-hidden rounded-xl border bg-card shadow-lg md:w-[320px]">
       <header className="flex items-start justify-between gap-2 border-b px-4 py-3">
         <div className="min-w-0 flex-1">
           {isEditingName ? (
@@ -165,13 +165,13 @@ export function AreaInsightsCard() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="rota" className="max-h-[calc(100vh-22rem)] overflow-y-auto px-4 py-3">
+        <TabsContent value="rota" className="max-h-[42dvh] overflow-y-auto px-4 py-3 md:max-h-[calc(100dvh-22rem)]">
           <AreaRoutePanel />
         </TabsContent>
 
         <TabsContent
           value="insights"
-          className="max-h-[calc(100vh-22rem)] space-y-4 overflow-y-auto px-4 py-3"
+          className="max-h-[42dvh] space-y-4 overflow-y-auto px-4 py-3 md:max-h-[calc(100dvh-22rem)]"
         >
           <AreaAppearance area={activeArea} onChange={(style) => updateStyle(activeArea.id, style)} />
 
