@@ -7,6 +7,7 @@ import { useAreas } from "@/components/areas/areas-provider"
 import { useDrivingEta } from "@/components/gps/use-driving-eta"
 import { useMapPoints } from "@/components/map-points-provider"
 import { useGeolocation, type GeoFix } from "@/hooks/use-geolocation"
+import { useWakeLock } from "@/hooks/use-wake-lock"
 import { distanceInMeters } from "@/lib/geo"
 import {
   ARRIVAL_RADIUS_M,
@@ -125,6 +126,9 @@ export function GpsProvider({ children }: { children: React.ReactNode }) {
   const [anchor, setAnchor] = useState<LatLng | null>(null)
 
   const { fix, error, isSupported, retry: retryLocation } = useGeolocation(isEnabled)
+
+  // Dirigindo, a tela não pode apagar com o painel aberto.
+  useWakeLock(isEnabled)
 
   const scope: Point[] = activeArea ? activePoints : points
   const scopeLabel = activeArea ? activeArea.name : "Base completa"
