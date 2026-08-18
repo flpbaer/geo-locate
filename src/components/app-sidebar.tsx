@@ -1,7 +1,7 @@
 "use client"
 import { BarChart3, ChevronDown, Folder, FolderTree, Loader2, Map, Search, User } from "lucide-react"
 import { usePathname } from "next/navigation"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import { useMapPoints } from "@/components/map-points-provider"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -37,6 +37,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { SidebarResizeHandle } from "@/components/sidebar-resize-handle"
 import Link from "next/link"
@@ -46,8 +47,13 @@ export function AppSidebar() {
   const [searchTerm, setSearchTerm] = useState("")
   const pathname = usePathname()
   const { points, selectPoint, selectedPoint } = useMapPoints()
+  const { setOpenMobile } = useSidebar()
   const [groupingMode, setGroupingMode] = useGroupingMode()
   const { isResolving, resolve } = useLocationResolver({ auto: false })
+
+  // Trocar de tela fecha a gaveta: no celular ela cobre a tela inteira, e continuar
+  // aberta sobre a página nova esconde justamente o que se foi ver.
+  useEffect(() => setOpenMobile(false), [pathname, setOpenMobile])
 
   const filteredClients = useMemo(() => {
     const term = normalizeText(searchTerm)

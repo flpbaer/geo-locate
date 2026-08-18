@@ -1,7 +1,7 @@
 "use client"
 
-import { Check, ChevronDown, ChevronUp, Trash2, Undo2 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { Check, Minus, Trash2, Undo2 } from "lucide-react"
+import { useEffect } from "react"
 
 import { AreaInsightsCard } from "@/components/areas/area-insights-card"
 import { useAreas } from "@/components/areas/areas-provider"
@@ -46,27 +46,18 @@ export function AreaToolbar() {
     canUndoDraft,
     canFinishDraft,
     selectArea,
+    isAreasPanelOpen,
+    closeAreasPanel,
   } = useAreas()
   const { isEnabled: isGpsEnabled } = useGps()
   const isMobile = useIsMobile()
 
-  /** No celular o painel da área é recolhível: aberto, ele cobre o mapa inteiro. */
-  const [showDetails, setShowDetails] = useState(true)
-  const activeAreaId = activeArea?.id ?? null
-
-  useEffect(() => setShowDetails(!isMobile), [isMobile])
-
-  // Selecionar uma área é pedido explícito de ver os números dela.
-  useEffect(() => {
-    if (activeAreaId) setShowDetails(true)
-  }, [activeAreaId])
-
   // Entrar no modo GPS devolve o mapa: no celular os dois painéis juntos não caberiam.
   useEffect(() => {
-    if (isGpsEnabled && isMobile) setShowDetails(false)
-  }, [isGpsEnabled, isMobile])
+    if (isGpsEnabled && isMobile) closeAreasPanel()
+  }, [isGpsEnabled, isMobile, closeAreasPanel])
 
-  if (!draft && areas.length === 0) return null
+  if (!isAreasPanelOpen || (!draft && areas.length === 0)) return null
 
   return (
     // Começa abaixo dos botões redondos do topo, que ocupam os dois cantos.
@@ -74,7 +65,19 @@ export function AreaToolbar() {
       <div className="pointer-events-auto w-full rounded-xl border bg-card p-2 shadow-lg md:w-[320px]">
         {draft && (
           <div className="rounded-lg bg-accent px-2.5 py-2">
-            <p className="text-[11px] leading-snug text-accent-foreground">{draftStatus(draft)}</p>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[11px] leading-snug text-accent-foreground">{draftStatus(draft)}</p>
+              {areas.length === 0 && (
+                <button
+                  type="button"
+                  className="-mr-1 -mt-0.5 shrink-0 cursor-pointer rounded p-1 text-accent-foreground/70 hover:bg-background/60 hover:text-accent-foreground"
+                  title="Minimizar — reabra pelo botão de mais"
+                  onClick={closeAreasPanel}
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+              )}
+            </div>
 
             <div className="mt-2 flex items-center gap-1.5">
               <Button
@@ -122,16 +125,14 @@ export function AreaToolbar() {
               <span className="text-[11px] font-medium text-muted-foreground">
                 Áreas ({formatNumber(areas.length)})
               </span>
-              {activeArea && (
-                <button
-                  type="button"
-                  className="-mr-1 cursor-pointer rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground md:hidden"
-                  title={showDetails ? "Recolher painel da área" : "Abrir painel da área"}
-                  onClick={() => setShowDetails((current) => !current)}
-                >
-                  {showDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
-              )}
+              <button
+                type="button"
+                className="-mr-1 cursor-pointer rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                title="Minimizar — reabra pelo botão de mais"
+                onClick={closeAreasPanel}
+              >
+                <Minus className="h-4 w-4" />
+              </button>
             </div>
 
             <ul className="max-h-[132px] space-y-0.5 overflow-y-auto md:max-h-[180px]">
@@ -171,11 +172,9 @@ export function AreaToolbar() {
         )}
       </div>
 
-      {showDetails && (
-        <div className="pointer-events-auto min-h-0">
-          <AreaInsightsCard />
-        </div>
-      )}
+      <div className="pointer-events-auto min-h-0">
+        <AreaInsightsCard />
+      </div>
     </div>
   )
 }
