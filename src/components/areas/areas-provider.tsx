@@ -57,6 +57,14 @@ interface AreasContextType {
   canFinishDraft: boolean
   /** Aparência que a próxima área vai receber — usada no preview do desenho. */
   draftStyle: AreaStyle
+  /**
+   * Painel de áreas à vista ou minimizado. Começa minimizado: a lista não precisa ocupar
+   * o mapa até alguém querer olhar. Desenhar, criar ou selecionar área traz ele de volta.
+   */
+  isAreasPanelOpen: boolean
+  openAreasPanel: () => void
+  closeAreasPanel: () => void
+  toggleAreasPanel: () => void
   createArea: (draft: AreaDraft) => Area
   selectArea: (id: string | null) => void
   renameArea: (id: string, name: string) => void
@@ -85,6 +93,7 @@ export function AreasProvider({ children }: { children: React.ReactNode }) {
 
   const [activeAreaId, setActiveAreaId] = useState<string | null>(null)
   const [draft, setDraft] = useState<DrawingDraft | null>(null)
+  const [isAreasPanelOpen, setIsAreasPanelOpen] = useState(false)
 
   const activeArea = useMemo(
     () => areas.find((area) => area.id === activeAreaId) ?? null,
@@ -114,12 +123,17 @@ export function AreasProvider({ children }: { children: React.ReactNode }) {
       const created = addArea({ style: draftStyle, ...area })
       setActiveAreaId(created.id)
       setDraft(null)
+      setIsAreasPanelOpen(true)
       return created
     },
     [addArea, draftStyle],
   )
 
-  const startDrawing = useCallback((kind: AreaKind) => setDraft(drawing.startDraft(kind)), [])
+  // Desenhar precisa do painel: é lá que fica o passo a passo e o desfazer.
+  const startDrawing = useCallback((kind: AreaKind) => {
+    setDraft(drawing.startDraft(kind))
+    setIsAreasPanelOpen(true)
+  }, [])
 
   const cancelDrawing = useCallback(() => setDraft(null), [])
 
@@ -174,12 +188,23 @@ export function AreasProvider({ children }: { children: React.ReactNode }) {
     [updateArea],
   )
 
+  /**
+   * Identidade estável: o efeito que minimiza o painel ao entrar no modo GPS depende
+   * destas funções, e uma nova a cada render o faria disparar a cada leitura do GPS —
+   * reabrir o painel viraria impossível.
+   */
+  const openAreasPanel = useCallback(() => setIsAreasPanelOpen(true), [])
+  const closeAreasPanel = useCallback(() => setIsAreasPanelOpen(false), [])
+  const toggleAreasPanel = useCallback(() => setIsAreasPanelOpen((current) => !current), [])
+
   const [isPickingOrigin, setIsPickingOrigin] = useState(false)
 
   // Trocar de área encerra a escolha de origem em andamento, que era da área anterior.
+  // Selecionar (inclusive clicando na forma no mapa) é pedido de ver os números dela.
   const selectArea = useCallback((id: string | null) => {
     setActiveAreaId(id)
     setIsPickingOrigin(false)
+    if (id) setIsAreasPanelOpen(true)
   }, [])
 
   const routeSettings = useMemo(() => resolveRouteSettings(activeArea), [activeArea])
@@ -228,6 +253,10 @@ export function AreasProvider({ children }: { children: React.ReactNode }) {
     canUndoDraft: drawing.canUndoDraft(draft),
     canFinishDraft: drawing.canFinishDraft(draft),
     draftStyle,
+    isAreasPanelOpen,
+    openAreasPanel,
+    closeAreasPanel,
+    toggleAreasPanel,
     createArea,
     selectArea,
     renameArea,

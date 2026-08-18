@@ -1,6 +1,6 @@
 "use client"
 
-import { Circle as CircleIcon, Hexagon, Plus, Upload, Users } from "lucide-react"
+import { Circle as CircleIcon, Hexagon, Layers, Plus, Upload, Users } from "lucide-react"
 import { motion } from "motion/react"
 import { useRef, useState } from "react"
 
@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button"
  * e o mapa fica livre.
  */
 export function MapActions() {
-  const { drawingKind, startDrawing } = useAreas()
+  const { areas, drawingKind, startDrawing, isAreasPanelOpen, toggleAreasPanel } = useAreas()
   const { points, isLoading } = useMapPoints()
 
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -54,6 +54,20 @@ export function MapActions() {
       onSelect: () => setIsImportOpen(true),
     },
   ]
+
+  // O painel de áreas fica minimizado por padrão; esta é a porta de volta para ele.
+  if (areas.length > 0 || drawingKind) {
+    actions.push({
+      id: "areas",
+      label: "Áreas",
+      hint: isAreasPanelOpen
+        ? "Minimizar o painel"
+        : `${areas.length.toLocaleString("pt-BR")} salva(s) — abrir o painel`,
+      icon: Layers,
+      isActive: isAreasPanelOpen,
+      onSelect: toggleAreasPanel,
+    })
+  }
 
   return (
     <>
