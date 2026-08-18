@@ -98,9 +98,9 @@ export function GpsPanel() {
     isEnabled,
     enable,
     disable,
-    isSupported,
     fix,
     error,
+    permission,
     retryLocation,
     scopeLabel,
     nearby,
@@ -157,8 +157,7 @@ export function GpsPanel() {
         size="sm"
         className="absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom))] right-3 z-20 h-10 cursor-pointer px-4 text-sm shadow-lg md:bottom-4 md:right-4 md:h-8 md:px-3"
         onClick={enable}
-        disabled={!isSupported}
-        title={isSupported ? "Acompanhar sua posição e roteirizar a partir dela" : "Sem geolocalização neste navegador"}
+        title="Acompanhar sua posição e roteirizar a partir dela"
       >
         <Navigation className="mr-1.5 h-3.5 w-3.5" />
         Modo GPS
@@ -240,10 +239,29 @@ export function GpsPanel() {
         )}
 
         {!fix && !error && (
-          <p className="flex items-center gap-1.5 py-4 text-[11px] text-muted-foreground">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            Obtendo sua localização…
-          </p>
+          <div className="py-3">
+            <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Obtendo sua localização…
+            </p>
+            {permission === "prompt" && (
+              <p className="mt-1.5 text-[10px] leading-snug text-muted-foreground">
+                O navegador está pedindo a permissão de localização — confirme para continuar.
+              </p>
+            )}
+            {permission === "granted" && (
+              <p className="mt-1.5 text-[10px] leading-snug text-muted-foreground">
+                Permissão concedida; esperando o primeiro sinal. Dentro de prédios isso pode levar alguns
+                segundos.
+              </p>
+            )}
+            {permission === "denied" && (
+              <p className="mt-1.5 text-[10px] leading-snug text-muted-foreground">
+                A permissão de localização está negada para este site. Libere no ícone ao lado do endereço e
+                toque em tentar de novo.
+              </p>
+            )}
+          </div>
         )}
 
         {fix && pendingCount === 0 && (

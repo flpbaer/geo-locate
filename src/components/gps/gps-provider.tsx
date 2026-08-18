@@ -66,6 +66,8 @@ interface GpsContextType {
   /** Última posição conhecida do aparelho. */
   fix: GeoFix | null
   error: string | null
+  /** Estado da permissão de localização, quando o navegador informa. */
+  permission: PermissionState | null
   /** Recomeça a busca por posição depois de um erro, sem sair do modo. */
   retryLocation: () => void
   /** Base do modo: os clientes da área ativa, ou a base completa quando não há área. */
@@ -125,7 +127,7 @@ export function GpsProvider({ children }: { children: React.ReactNode }) {
   const [useTrafficEta, setUseTrafficEta] = useState(true)
   const [anchor, setAnchor] = useState<LatLng | null>(null)
 
-  const { fix, error, isSupported, retry: retryLocation } = useGeolocation(isEnabled)
+  const { fix, error, isSupported, permission, retry: retryLocation } = useGeolocation(isEnabled)
 
   // Dirigindo, a tela não pode apagar com o painel aberto.
   useWakeLock(isEnabled)
@@ -270,6 +272,7 @@ export function GpsProvider({ children }: { children: React.ReactNode }) {
     isSupported,
     fix,
     error,
+    permission,
     retryLocation,
     scopeLabel,
     scopeTotal: scope.length,
