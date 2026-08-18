@@ -6,6 +6,8 @@ import { GoogleMap, Marker } from "@react-google-maps/api"
 import { useMapPoints } from "@/components/map-points-provider"
 import { AreaOverlays } from "@/components/areas/area-overlays"
 import { useAreas } from "@/components/areas/areas-provider"
+import { GpsOverlay } from "@/components/gps/gps-overlay"
+import { useGps } from "@/components/gps/gps-provider"
 import { ClientDetailsSheet } from "@/components/client-details-sheet"
 import { areaBounds } from "@/lib/geo"
 import type { Point } from "@/types/point"
@@ -49,6 +51,7 @@ OptimizedMarker.displayName = "OptimizedMarker"
 const MapComponent = () => {
   const { points: importedPoints, selectedPoint, selectPoint } = useMapPoints()
   const { activeArea, activePoints, activeRoute } = useAreas()
+  const { isEnabled: isGpsEnabled, route: gpsRoute, visits } = useGps()
   const [detailsPointId, setDetailsPointId] = useState<string | null>(null)
   const [mapCenter, setMapCenter] = useState(defaultMapCenter)
   const [mapZoom, setMapZoom] = useState(5)
@@ -115,6 +118,16 @@ const MapComponent = () => {
     () => new Set(activeRoute?.stops.map((stop) => stop.point.id) ?? []),
     [activeRoute],
   )
+
+  // No modo GPS o GpsOverlay desenha as paradas numeradas e os clientes já resolvidos —
+  // o pino padrão deles ficaria empilhado por baixo.
+  const gpsHiddenIds = useMemo(() => {
+    if (!isGpsEnabled) return new Set<string>()
+
+    const ids = new Set<string>(gpsRoute?.stops.map((stop) => stop.point.id) ?? [])
+    Object.keys(visits).forEach((id) => ids.add(id))
+    return ids
+  }, [isGpsEnabled, gpsRoute, visits])
 
   const adjustInitialMapView = useCallback(() => {
     if (importedPoints.length === 0 || hasInitializedView) return
@@ -230,9 +243,10 @@ const MapComponent = () => {
         }}
       >
         <AreaOverlays />
+        {isGpsEnabled && <GpsOverlay />}
 
         {importedPoints.map((point) => {
-          if (routeStopIds.has(point.id)) return null
+          if (routeStopIds.has(point.id) || gpsHiddenIds.has(point.id)) return null
 
           const isSelected = selectedPoint?.id === point.id
           const isOutsideActiveArea = activeArea !== null && !activePointIds.has(point.id)

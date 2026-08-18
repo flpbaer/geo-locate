@@ -2,6 +2,8 @@
 
 import { AreaToolbar } from "@/components/areas/area-toolbar"
 import { AreasProvider } from "@/components/areas/areas-provider"
+import { GpsPanel } from "@/components/gps/gps-panel"
+import { GpsProvider } from "@/components/gps/gps-provider"
 import { ImportCSVButton } from "@/components/import-csv/import-csv-button"
 import { MapComponent } from "@/components/map"
 import { MapProvider } from "@/components/map-provider"
@@ -12,8 +14,11 @@ export default function HomePage() {
       <ImportCSVButton />
       <MapProvider>
         <AreasProvider>
-          <AreaToolbar />
-          <MapComponent />
+          <GpsProvider>
+            <AreaToolbar />
+            <GpsPanel />
+            <MapComponent />
+          </GpsProvider>
         </AreasProvider>
       </MapProvider>
     </div>
