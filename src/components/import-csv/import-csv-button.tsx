@@ -13,11 +13,12 @@ export function ImportCSVButton() {
       <Button
         variant="outline"
         size="sm"
-        className="absolute right-4 top-4 z-10 bg-white shadow-md"
+        className="absolute right-3 top-3 z-10 bg-white shadow-md md:right-4 md:top-4"
         onClick={() => setIsDialogOpen(true)}
+        title="Importar CSV"
       >
-        <Upload className="mr-2 h-4 w-4" />
-        Importar CSV
+        <Upload className="h-4 w-4 md:mr-2" />
+        <span className="hidden md:inline">Importar CSV</span>
       </Button>
 
       <ImportCSVDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />

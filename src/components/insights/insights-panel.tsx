@@ -10,6 +10,7 @@ import { RankingChart } from "@/components/insights/ranking-chart"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 import { useLocationResolver } from "@/hooks/use-location-resolver"
 import { getStateName, normalizeText, toStateCode } from "@/lib/br-states"
 import { pointsUseCase } from "@/usecases/points-usecase"
@@ -78,10 +79,13 @@ export function InsightsPanel() {
 
   return (
     <div className="h-full overflow-y-auto bg-background">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6">
+      <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 md:p-6">
         <header className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">Insights de clientes</h1>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <SidebarTrigger className="-ml-1.5 size-9 shrink-0 cursor-pointer md:hidden" title="Abrir menu" />
+              <h1 className="text-xl font-semibold text-foreground">Insights de clientes</h1>
+            </div>
             <p className="mt-1 text-sm text-muted-foreground">
               Distribuição geográfica da base importada — por estado e por cidade.
             </p>
