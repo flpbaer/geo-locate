@@ -239,9 +239,13 @@ const MapComponent = () => {
         onDragEnd={handleMapChange}
         onZoomChanged={handleMapChange}
         options={{
-          zoomControl: true,
-          mapTypeControl: true,
+          // Nada de UI do Google sobre o mapa: zoom por pinça/scroll, e o tipo de mapa
+          // não é uma escolha do fluxo — os painéis do app ocupam os cantos.
           disableDefaultUI: true,
+          zoomControl: false,
+          mapTypeControl: false,
+          fullscreenControl: false,
+          streetViewControl: false,
           // A página não rola, então um dedo pode arrastar o mapa: sem "greedy" o
           // celular exige dois dedos e mostra o aviso por cima.
           gestureHandling: "greedy",
