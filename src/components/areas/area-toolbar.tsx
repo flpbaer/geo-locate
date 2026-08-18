@@ -1,13 +1,12 @@
 "use client"
 
-import { Check, ChevronDown, ChevronUp, Circle as CircleIcon, Hexagon, Trash2, Undo2 } from "lucide-react"
+import { Check, ChevronDown, ChevronUp, Trash2, Undo2 } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { AreaInsightsCard } from "@/components/areas/area-insights-card"
 import { useAreas } from "@/components/areas/areas-provider"
 import { useGps } from "@/components/gps/gps-provider"
 import { Button } from "@/components/ui/button"
-import { SidebarTrigger } from "@/components/ui/sidebar"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { resolveAreaStyle } from "@/lib/area-style"
 import { cn } from "@/lib/utils"
@@ -29,14 +28,18 @@ function draftStatus(draft: DrawingDraft): string {
   return `${count} vértices — feche no primeiro ponto ou aperte Enter.`
 }
 
+/**
+ * Lista de áreas e painel da área ativa.
+ *
+ * Criar área saiu daqui para o menu em disco (`MapActions`): o que sobra é o que precisa
+ * ficar à vista enquanto se trabalha — e, sem áreas nem desenho em curso, nada aparece.
+ */
 export function AreaToolbar() {
   const {
     areas,
     activeArea,
     areaCounts,
-    drawingKind,
     draft,
-    startDrawing,
     cancelDrawing,
     undoDraftPoint,
     finishDraft,
@@ -63,45 +66,14 @@ export function AreaToolbar() {
     if (isGpsEnabled && isMobile) setShowDetails(false)
   }, [isGpsEnabled, isMobile])
 
-  return (
-    <div className="pointer-events-none absolute left-3 right-14 top-3 z-10 flex max-h-[calc(100dvh-1.5rem)] flex-col gap-2 md:left-4 md:right-auto md:top-4 md:max-h-[calc(100dvh-2rem)] md:gap-3">
-      <div className="pointer-events-auto w-full rounded-xl border bg-card p-2 shadow-lg md:w-[320px]">
-        <div className="flex gap-1.5">
-          {/* No celular a lista de clientes é uma gaveta, e este é o único gatilho dela. */}
-          <SidebarTrigger className="size-9 shrink-0 cursor-pointer md:hidden" title="Clientes" />
-          <Button
-            size="sm"
-            variant={drawingKind === "circle" ? "default" : "outline"}
-            className="h-9 flex-1 cursor-pointer md:h-8"
-            onClick={() => (drawingKind === "circle" ? cancelDrawing() : startDrawing("circle"))}
-          >
-            <CircleIcon className="mr-1.5 h-3.5 w-3.5" />
-            Raio
-          </Button>
-          <Button
-            size="sm"
-            variant={drawingKind === "polygon" ? "default" : "outline"}
-            className="h-9 flex-1 cursor-pointer md:h-8"
-            onClick={() => (drawingKind === "polygon" ? cancelDrawing() : startDrawing("polygon"))}
-          >
-            <Hexagon className="mr-1.5 h-3.5 w-3.5" />
-            Polígono
-          </Button>
-          {activeArea && (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="size-9 shrink-0 cursor-pointer md:hidden"
-              title={showDetails ? "Recolher painel da área" : "Abrir painel da área"}
-              onClick={() => setShowDetails((current) => !current)}
-            >
-              {showDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          )}
-        </div>
+  if (!draft && areas.length === 0) return null
 
+  return (
+    // Começa abaixo dos botões redondos do topo, que ocupam os dois cantos.
+    <div className="pointer-events-none absolute left-3 right-3 top-[4.5rem] z-10 flex max-h-[calc(100dvh-5.5rem)] flex-col gap-2 md:left-4 md:right-auto md:top-4 md:max-h-[calc(100dvh-2rem)] md:gap-3">
+      <div className="pointer-events-auto w-full rounded-xl border bg-card p-2 shadow-lg md:w-[320px]">
         {draft && (
-          <div className="mt-2 rounded-lg bg-accent px-2.5 py-2">
+          <div className="rounded-lg bg-accent px-2.5 py-2">
             <p className="text-[11px] leading-snug text-accent-foreground">{draftStatus(draft)}</p>
 
             <div className="mt-2 flex items-center gap-1.5">
@@ -145,39 +117,57 @@ export function AreaToolbar() {
         )}
 
         {areas.length > 0 && (
-          <ul className="mt-2 max-h-[132px] space-y-0.5 overflow-y-auto md:max-h-[180px]">
-            {areas.map((area) => {
-              const isActive = activeArea?.id === area.id
+          <>
+            <div className={cn("flex items-center justify-between gap-2 px-1 pb-1", draft && "pt-2")}>
+              <span className="text-[11px] font-medium text-muted-foreground">
+                Áreas ({formatNumber(areas.length)})
+              </span>
+              {activeArea && (
+                <button
+                  type="button"
+                  className="-mr-1 cursor-pointer rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground md:hidden"
+                  title={showDetails ? "Recolher painel da área" : "Abrir painel da área"}
+                  onClick={() => setShowDetails((current) => !current)}
+                >
+                  {showDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+              )}
+            </div>
 
-              return (
-                <li key={area.id}>
-                  <button
-                    type="button"
-                    onClick={() => selectArea(isActive ? null : area.id)}
-                    className={cn(
-                      "flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent/60 md:py-1.5",
-                      isActive && "bg-accent",
-                    )}
-                  >
-                    {/* A cor identifica a área na lista; o nome e a contagem seguem ao
-                        lado, para que a identidade nunca dependa só da cor. */}
-                    <span
-                      className="h-3 w-3 shrink-0 rounded-full border"
-                      style={{
-                        backgroundColor: resolveAreaStyle(area).fillColor,
-                        borderColor: resolveAreaStyle(area).strokeColor,
-                      }}
-                      aria-hidden
-                    />
-                    <span className="min-w-0 flex-1 truncate text-xs text-foreground">{area.name}</span>
-                    <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-                      {formatNumber(areaCounts[area.id] ?? 0)}
-                    </span>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
+            <ul className="max-h-[132px] space-y-0.5 overflow-y-auto md:max-h-[180px]">
+              {areas.map((area) => {
+                const isActive = activeArea?.id === area.id
+
+                return (
+                  <li key={area.id}>
+                    <button
+                      type="button"
+                      onClick={() => selectArea(isActive ? null : area.id)}
+                      className={cn(
+                        "flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent/60 md:py-1.5",
+                        isActive && "bg-accent",
+                      )}
+                    >
+                      {/* A cor identifica a área na lista; o nome e a contagem seguem ao
+                          lado, para que a identidade nunca dependa só da cor. */}
+                      <span
+                        className="h-3 w-3 shrink-0 rounded-full border"
+                        style={{
+                          backgroundColor: resolveAreaStyle(area).fillColor,
+                          borderColor: resolveAreaStyle(area).strokeColor,
+                        }}
+                        aria-hidden
+                      />
+                      <span className="min-w-0 flex-1 truncate text-xs text-foreground">{area.name}</span>
+                      <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                        {formatNumber(areaCounts[area.id] ?? 0)}
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </>
         )}
       </div>
 

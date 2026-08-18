@@ -15,8 +15,21 @@ export function MapProvider({ children }: { children: ReactNode }) {
     libraries: libraries as Libraries,
   });
 
-  if(loadError) return <p>Encountered error while loading google maps</p>
-  if(!scriptLoaded) return <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+  if (loadError)
+    return (
+      <div className="flex h-full w-full items-center justify-center p-6 text-center">
+        <p className="max-w-xs text-sm text-muted-foreground">
+          Não foi possível carregar o mapa do Google. Os painéis seguem funcionando.
+        </p>
+      </div>
+    )
+
+  if (!scriptLoaded)
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600" />
+      </div>
+    )
 
   return children;
 }
