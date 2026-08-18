@@ -1,6 +1,6 @@
 "use client"
 
-import { Circle as CircleIcon, Hexagon, Layers, Plus, Upload, Users } from "lucide-react"
+import { Circle as CircleIcon, Eraser, Hexagon, Layers, Plus, Upload, Users } from "lucide-react"
 import { motion } from "motion/react"
 import { useRef, useState } from "react"
 
@@ -8,7 +8,18 @@ import { useAreas } from "@/components/areas/areas-provider"
 import { ImportCSVDialog } from "@/components/import-csv/import-csv-dialog"
 import { RadialMenu, type RadialAction } from "@/components/map-actions/radial-menu"
 import { useMapPoints } from "@/components/map-points-provider"
-import { Button } from "@/components/ui/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 /**
  * Ações de criação do mapa, atrás de um botão de mais no canto.
@@ -19,10 +30,11 @@ import { Button } from "@/components/ui/button"
  */
 export function MapActions() {
   const { areas, drawingKind, startDrawing, isAreasPanelOpen, toggleAreasPanel } = useAreas()
-  const { points, isLoading } = useMapPoints()
+  const { points, isLoading, clearPoints } = useMapPoints()
 
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
+  const [isClearOpen, setIsClearOpen] = useState(false)
 
   /** O clique que vem depois do pointerdown do mesmo toque não deve alternar de novo. */
   const handledByPointer = useRef(false)
@@ -54,6 +66,18 @@ export function MapActions() {
       onSelect: () => setIsImportOpen(true),
     },
   ]
+
+  // Limpar antes de importar: o CSV novo já substitui a base, mas quem quer só esvaziar
+  // o mapa não precisa passar pelo import para isso.
+  if (points.length > 0) {
+    actions.push({
+      id: "clear",
+      label: "Limpar clientes",
+      hint: `Remove os ${points.length.toLocaleString("pt-BR")} clientes do mapa`,
+      icon: Eraser,
+      onSelect: () => setIsClearOpen(true),
+    })
+  }
 
   // O painel de áreas fica minimizado por padrão; esta é a porta de volta para ele.
   if (areas.length > 0 || drawingKind) {
@@ -126,6 +150,29 @@ export function MapActions() {
       )}
 
       <ImportCSVDialog open={isImportOpen} onOpenChange={setIsImportOpen} />
+
+      <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Limpar {points.length.toLocaleString("pt-BR")} cliente(s) do mapa?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              A base sai do mapa e você pode importar outro CSV. Suas áreas continuam salvas — elas passam a
+              contar zero cliente até a próxima importação.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="cursor-pointer">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className={cn(buttonVariants({ variant: "destructive" }), "cursor-pointer")}
+              onClick={() => void clearPoints()}
+            >
+              Limpar clientes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
