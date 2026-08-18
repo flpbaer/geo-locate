@@ -32,6 +32,9 @@ import type { Point } from "@/types/point"
 
 const formatNumber = (value: number) => value.toLocaleString("pt-BR")
 
+/** Acima disso o fix não é de GPS — vale avisar antes de o vendedor confiar na distância. */
+const APPROXIMATE_ACCURACY_M = 500
+
 const ETA_SOURCE_LABELS: Record<EtaSource, string> = {
   traffic: "com trânsito",
   directions: "por ruas",
@@ -95,6 +98,7 @@ export function GpsPanel() {
     isSupported,
     fix,
     error,
+    retryLocation,
     scopeLabel,
     nearby,
     route,
@@ -184,9 +188,30 @@ export function GpsPanel() {
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
         {error && (
-          <p className="flex items-start gap-1.5 rounded-lg border border-destructive/40 bg-destructive/5 px-2.5 py-2 text-[10px] leading-snug text-foreground">
-            <AlertCircle className="mt-px h-3 w-3 shrink-0 text-destructive" />
-            {error}
+          <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-2.5 py-2">
+            <p className="flex items-start gap-1.5 text-[10px] leading-snug text-foreground">
+              <AlertCircle className="mt-px h-3 w-3 shrink-0 text-destructive" />
+              {error}
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-2 h-6 w-full cursor-pointer text-[10px]"
+              onClick={retryLocation}
+            >
+              <RotateCcw className="mr-1 h-3 w-3" />
+              Tentar de novo
+            </Button>
+          </div>
+        )}
+
+        {/* Fix de rede (Wi-Fi/IP) posiciona por bairro, não por rua: a sequência sai
+            plausível, mas não é de onde o vendedor está exatamente. */}
+        {fix && fix.accuracy > APPROXIMATE_ACCURACY_M && (
+          <p className="flex items-start gap-1.5 text-[10px] leading-snug text-muted-foreground">
+            <AlertCircle className="mt-px h-3 w-3 shrink-0" />
+            Posição aproximada ({formatAccuracy(fix.accuracy)}) — provavelmente localização de rede, sem GPS. A
+            sequência e a previsão seguem essa precisão, e a chegada precisa ser confirmada no botão.
           </p>
         )}
 
