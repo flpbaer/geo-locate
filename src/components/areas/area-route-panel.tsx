@@ -6,37 +6,11 @@ import { useAreas } from "@/components/areas/areas-provider"
 import { useRoadPath } from "@/components/areas/use-road-path"
 import { useMapPoints } from "@/components/map-points-provider"
 import { Button } from "@/components/ui/button"
+import { ToggleField } from "@/components/ui/toggle-field"
 import { formatDistance } from "@/lib/geo"
 import { cn } from "@/lib/utils"
 
 const formatNumber = (value: number) => value.toLocaleString("pt-BR")
-
-function Toggle({
-  checked,
-  onChange,
-  label,
-  hint,
-}: {
-  checked: boolean
-  onChange: (checked: boolean) => void
-  label: string
-  hint?: string
-}) {
-  return (
-    <label className="flex cursor-pointer items-start gap-2">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="mt-0.5 h-3.5 w-3.5 shrink-0 cursor-pointer accent-foreground"
-      />
-      <span className="min-w-0 flex-1">
-        <span className="block text-[11px] text-foreground">{label}</span>
-        {hint && <span className="block text-[10px] leading-snug text-muted-foreground">{hint}</span>}
-      </span>
-    </label>
-  )
-}
 
 export function AreaRoutePanel() {
   const {
@@ -96,7 +70,7 @@ export function AreaRoutePanel() {
 
   return (
     <div className="space-y-3">
-      <Toggle
+      <ToggleField
         checked={routeSettings.enabled}
         onChange={(enabled) => updateRouteSettings({ enabled })}
         label="Calcular rota desta área"
@@ -155,14 +129,14 @@ export function AreaRoutePanel() {
             )}
           </div>
 
-          <Toggle
+          <ToggleField
             checked={routeSettings.roundTrip}
             onChange={(roundTrip) => updateRouteSettings({ roundTrip })}
             label="Voltar ao ponto de partida"
             hint="Fecha o ciclo no fim do dia"
           />
 
-          <Toggle
+          <ToggleField
             checked={routeSettings.useRoads}
             onChange={(useRoads) => updateRouteSettings({ useRoads })}
             label="Traçado por ruas"

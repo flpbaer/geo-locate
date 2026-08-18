@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react"
 
 import { useAreas } from "@/components/areas/areas-provider"
 import { useRoadPath } from "@/components/areas/use-road-path"
+import { useGps } from "@/components/gps/gps-provider"
 import { useMapPoints } from "@/components/map-points-provider"
 import { resolveAreaStyle } from "@/lib/area-style"
 import type { LatLng } from "@/types/area"
@@ -103,6 +104,7 @@ function OriginPicker() {
 
 export function RouteOverlay() {
   const { activeArea, activeRoute, routeSettings, isPickingOrigin } = useAreas()
+  const { isEnabled: isGpsEnabled } = useGps()
   const { selectPoint } = useMapPoints()
 
   const style = resolveAreaStyle(activeArea)
@@ -116,6 +118,10 @@ export function RouteOverlay() {
       </>
     )
   }
+
+  // Duas sequências numeradas ao mesmo tempo confundem: no modo GPS vale a que parte da
+  // posição atual, e a rota de partida fixa sai do mapa.
+  if (isGpsEnabled) return null
 
   if (!activeRoute || activeRoute.stops.length === 0) return null
 
