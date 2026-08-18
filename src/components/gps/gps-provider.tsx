@@ -37,6 +37,15 @@ const NEARBY_LIMIT = 8
 /** Distância mínima para corrigir a previsão pelo caminho já andado (evita divisão instável). */
 const MIN_SCALABLE_DISTANCE_M = 200
 
+/**
+ * Precisão a partir da qual a chegada deixa de ser detectável.
+ *
+ * O raio de chegada acompanha a incerteza do fix, mas num fix de rede (±2 km) isso daria
+ * "você chegou" com o cliente ainda a quilômetros. Sem GPS de verdade, quem confirma a
+ * visita é o vendedor pelo botão.
+ */
+const MAX_ARRIVAL_ACCURACY_M = 250
+
 export type VisitStatus = "done" | "skipped"
 
 export type EtaSource = "traffic" | "directions" | "estimate"
@@ -56,6 +65,8 @@ interface GpsContextType {
   /** Última posição conhecida do aparelho. */
   fix: GeoFix | null
   error: string | null
+  /** Recomeça a busca por posição depois de um erro, sem sair do modo. */
+  retryLocation: () => void
   /** Base do modo: os clientes da área ativa, ou a base completa quando não há área. */
   scopeLabel: string
   scopeTotal: number
@@ -113,7 +124,7 @@ export function GpsProvider({ children }: { children: React.ReactNode }) {
   const [useTrafficEta, setUseTrafficEta] = useState(true)
   const [anchor, setAnchor] = useState<LatLng | null>(null)
 
-  const { fix, error, isSupported } = useGeolocation(isEnabled)
+  const { fix, error, isSupported, retry: retryLocation } = useGeolocation(isEnabled)
 
   const scope: Point[] = activeArea ? activePoints : points
   const scopeLabel = activeArea ? activeArea.name : "Base completa"
@@ -221,9 +232,12 @@ export function GpsProvider({ children }: { children: React.ReactNode }) {
   }, [route, eta])
 
   // O raio de chegada nunca é menor que a incerteza do fix: num fix de ±300 m,
-  // "estou a 90 m" não prova nada.
+  // "estou a 90 m" não prova nada. Acima de MAX_ARRIVAL_ACCURACY_M não há detecção.
   const hasArrived =
-    nextStopDistance !== null && fix !== null && nextStopDistance <= Math.max(ARRIVAL_RADIUS_M, fix.accuracy)
+    nextStopDistance !== null &&
+    fix !== null &&
+    fix.accuracy <= MAX_ARRIVAL_ACCURACY_M &&
+    nextStopDistance <= Math.max(ARRIVAL_RADIUS_M, fix.accuracy)
 
   const setVisit = useCallback((id: string, status: VisitStatus) => {
     setVisits((current) => ({ ...current, [id]: status }))
@@ -252,6 +266,7 @@ export function GpsProvider({ children }: { children: React.ReactNode }) {
     isSupported,
     fix,
     error,
+    retryLocation,
     scopeLabel,
     scopeTotal: scope.length,
     nearby,
