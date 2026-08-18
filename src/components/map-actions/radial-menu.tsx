@@ -77,13 +77,18 @@ export function RadialMenu({ open, onClose, actions, title }: RadialMenuProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
   const openedAt = useRef(0)
 
-  const select = useCallback(
-    (index: number) => {
-      onClose()
-      actions[index]?.onSelect()
-    },
-    [actions, onClose],
-  )
+  /**
+   * `actions` é remontado a cada render do pai, então ele não pode entrar nas dependências
+   * do efeito dos gestos: reanexar os listeners reiniciaria o cronômetro da pressão e
+   * quebraria o segurar-e-soltar. Por isso a escolha lê tudo de um ref.
+   */
+  const latest = useRef({ actions, onClose })
+  latest.current = { actions, onClose }
+
+  const select = useCallback((index: number) => {
+    latest.current.onClose()
+    latest.current.actions[index]?.onSelect()
+  }, [])
 
   useEffect(() => {
     if (!open) {
