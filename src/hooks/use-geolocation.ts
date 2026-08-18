@@ -49,6 +49,8 @@ export interface GeolocationState {
   error: string | null
   isWatching: boolean
   isSupported: boolean
+  /** Estado da permissão do navegador, quando ele expõe essa consulta. */
+  permission: PermissionState | null
   /** Recomeça a aquisição depois de um erro, sem sair do modo GPS. */
   retry: () => void
 }
@@ -86,7 +88,37 @@ export function useGeolocation(enabled: boolean): GeolocationState {
   /** Último fix e velocidade suavizada, para derivar velocidade em aparelhos sem `speed`. */
   const previous = useRef<{ fix: GeoFix; smoothedSpeed: number | null } | null>(null)
 
+  const [permission, setPermission] = useState<PermissionState | null>(null)
+
   const retry = useCallback(() => setAttempt((current) => current + 1), [])
+
+  /**
+   * Sem isso, "esperando o sistema responder" e "o usuário já negou" ficam iguais na
+   * tela: os dois são só ausência de posição.
+   */
+  useEffect(() => {
+    if (!enabled || typeof navigator === "undefined" || !navigator.permissions?.query) return
+
+    let cancelled = false
+    let status: PermissionStatus | null = null
+
+    navigator.permissions
+      .query({ name: "geolocation" as PermissionName })
+      .then((result) => {
+        if (cancelled) return
+        status = result
+        setPermission(result.state)
+        result.onchange = () => setPermission(result.state)
+      })
+      .catch(() => {
+        // Navegador sem consulta de permissão para geolocalização: segue sem o diagnóstico.
+      })
+
+    return () => {
+      cancelled = true
+      if (status) status.onchange = null
+    }
+  }, [enabled])
 
   useEffect(() => {
     if (!enabled) {
@@ -97,14 +129,21 @@ export function useGeolocation(enabled: boolean): GeolocationState {
       return
     }
 
-    if (!isSupported) {
-      setError("Este navegador não expõe a localização do aparelho.")
+    /**
+     * Origem insegura vem antes de "navegador não expõe": em http, o Safari do iPhone
+     * simplesmente apaga `navigator.geolocation`, então a falta da API é consequência do
+     * endereço — e culpar o navegador manda o usuário procurar no lugar errado.
+     */
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      setError(
+        `A localização só funciona em HTTPS ou localhost, e você abriu em ${window.location.origin}. ` +
+          "No celular, o navegador bloqueia o GPS fora de conexão segura.",
+      )
       return
     }
 
-    // Sem HTTPS o navegador recusa a API: melhor dizer isso antes de pedir permissão.
-    if (typeof window !== "undefined" && !window.isSecureContext) {
-      setError("A localização exige HTTPS (ou localhost). Abra o app por uma conexão segura.")
+    if (!isSupported) {
+      setError("Este navegador não expõe a localização do aparelho.")
       return
     }
 
@@ -221,5 +260,5 @@ export function useGeolocation(enabled: boolean): GeolocationState {
     }
   }, [enabled, isSupported, attempt])
 
-  return { fix, error, isWatching, isSupported, retry }
+  return { fix, error, isWatching, isSupported, permission, retry }
 }
