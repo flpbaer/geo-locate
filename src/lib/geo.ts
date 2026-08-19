@@ -1,4 +1,4 @@
-import type { Area, LatLng, PolygonArea } from "@/types/area"
+import type { Area, AreaGeometry, LatLng, PolygonArea } from "@/types/area"
 
 const EARTH_RADIUS_M = 6_371_008.8
 
@@ -44,7 +44,8 @@ export function isInsidePolygon(point: LatLng, path: LatLng[]): boolean {
   return inside
 }
 
-export function isInsideArea(point: LatLng, area: Area): boolean {
+/** Aceita a forma pura para servir também ao desenho em andamento, que ainda não é área. */
+export function isInsideArea(point: LatLng, area: AreaGeometry): boolean {
   if (area.kind === "circle") {
     return distanceInMeters(area.center, point) <= area.radius
   }

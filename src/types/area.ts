@@ -55,6 +55,14 @@ export type Area = CircleArea | PolygonArea
 
 export type AreaKind = Area["kind"]
 
+/**
+ * Só a forma, sem id/nome/aparência. É o que basta para saber se um cliente cai dentro —
+ * e o desenho em andamento já tem uma forma antes de virar área.
+ */
+export type AreaGeometry =
+  | { kind: "circle"; center: LatLng; radius: number }
+  | { kind: "polygon"; path: LatLng[] }
+
 /** `Omit` sobre união colapsa para as chaves comuns; esta versão distribui pelos membros. */
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
 
