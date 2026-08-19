@@ -6,6 +6,7 @@ import { useEffect } from "react"
 import { AreaInsightsCard } from "@/components/areas/area-insights-card"
 import { useAreas } from "@/components/areas/areas-provider"
 import { useGps } from "@/components/gps/gps-provider"
+import { useMapPoints } from "@/components/map-points-provider"
 import { Button } from "@/components/ui/button"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { resolveAreaStyle } from "@/lib/area-style"
@@ -50,6 +51,7 @@ export function AreaToolbar() {
     closeAreasPanel,
   } = useAreas()
   const { isEnabled: isGpsEnabled } = useGps()
+  const { points } = useMapPoints()
   const isMobile = useIsMobile()
 
   // Entrar no modo GPS devolve o mapa: no celular os dois painéis juntos não caberiam.
@@ -57,6 +59,8 @@ export function AreaToolbar() {
     if (isGpsEnabled && isMobile) closeAreasPanel()
   }, [isGpsEnabled, isMobile, closeAreasPanel])
 
+  // Sem base não há o que roteirizar nem contar: o painel some junto com as formas.
+  if (points.length === 0) return null
   if (!isAreasPanelOpen || (!draft && areas.length === 0)) return null
 
   return (

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useCallback, useContext, useMemo, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
 
 import { useMapPoints } from "@/components/map-points-provider"
 import { nextStyle, resolveAreaStyle } from "@/lib/area-style"
@@ -99,6 +99,12 @@ export function AreasProvider({ children }: { children: React.ReactNode }) {
     () => areas.find((area) => area.id === activeAreaId) ?? null,
     [areas, activeAreaId],
   )
+
+  // Limpar a base no meio de um desenho deixaria um rascunho que ninguém pode concluir:
+  // sem cliente, criar área está fora do ar.
+  useEffect(() => {
+    if (points.length === 0) setDraft(null)
+  }, [points.length])
 
   const areaCounts = useMemo(() => areasUseCase.countByArea(points, areas), [points, areas])
 
