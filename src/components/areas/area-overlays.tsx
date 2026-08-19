@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { AreaDrawing } from "@/components/areas/area-drawing"
 import { useAreas } from "@/components/areas/areas-provider"
 import { RouteOverlay } from "@/components/areas/route-overlay"
+import { useMapPoints } from "@/components/map-points-provider"
 import { resolveAreaStyle } from "@/lib/area-style"
 import type { AreaPatch, AreaStyle, CircleArea, LatLng, PolygonArea } from "@/types/area"
 
@@ -167,16 +168,24 @@ function AreaPolygonShape({ area, isActive, isDrawing, onSelect, onCommit }: Sha
 
 export function AreaOverlays() {
   const { areas, activeArea, drawingKind, isPickingOrigin, selectArea, updateGeometry } = useAreas()
+  const { points } = useMapPoints()
 
   // Escolher a origem também captura cliques do mapa: as formas não podem interceptá-los.
   const isDrawing = drawingKind !== null || isPickingOrigin
+
+  /**
+   * As áreas ficam salvas, mas fora de cena enquanto a base está vazia — depois de um F5
+   * elas apareceriam sozinhas no mapa, sem nenhum cliente para segmentar. Reimportar o
+   * CSV traz todas de volta.
+   */
+  const visibleAreas = points.length > 0 ? areas : []
 
   return (
     <>
       {drawingKind && <AreaDrawing key={drawingKind} />}
       <RouteOverlay />
 
-      {areas.map((area) =>
+      {visibleAreas.map((area) =>
         area.kind === "circle" ? (
           <AreaCircleShape
             key={area.id}
