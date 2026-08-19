@@ -1,5 +1,5 @@
 import { areaCenter, areaSizeKm2, distanceInMeters, isInsideArea } from "@/lib/geo"
-import type { Area, LatLng } from "@/types/area"
+import type { Area, AreaGeometry, LatLng } from "@/types/area"
 import type { Point } from "@/types/point"
 import { pointsUseCase, type LocationInsights, type LocationStat } from "@/usecases/points-usecase"
 
@@ -24,13 +24,14 @@ export interface AreaInsights {
 }
 
 export interface IAreasUseCase {
-  pointsInArea(points: Point[], area: Area): Point[]
+  pointsInArea(points: Point[], area: AreaGeometry): Point[]
   buildAreaInsights(points: Point[], area: Area, baseTotal: number): AreaInsights
   countByArea(points: Point[], areas: Area[]): Record<string, number>
 }
 
 export class AreasUseCase implements IAreasUseCase {
-  pointsInArea(points: Point[], area: Area): Point[] {
+  /** `area` pode ser a forma do desenho em curso — daí receber só a geometria. */
+  pointsInArea(points: Point[], area: AreaGeometry): Point[] {
     return points.filter((point) => isInsideArea({ lat: point.lat, lng: point.lng }, area))
   }
 
