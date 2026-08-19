@@ -52,7 +52,7 @@ const OptimizedMarker = React.memo(
 OptimizedMarker.displayName = "OptimizedMarker"
 const MapComponent = () => {
   const { points: importedPoints, selectedPoint, selectPoint } = useMapPoints()
-  const { activeArea, activePoints, activeRoute } = useAreas()
+  const { activeArea, activePoints, activeRoute, draftGeometry, draftPoints } = useAreas()
   const { isEnabled: isGpsEnabled, route: gpsRoute, visits } = useGps()
   const [detailsPointId, setDetailsPointId] = useState<string | null>(null)
   const [mapCenter, setMapCenter] = useState(defaultMapCenter)
@@ -112,7 +112,18 @@ const MapComponent = () => {
     return { default: defaultIcon, selected: selectedIcon, muted: mutedIcon }
   }, [])
 
-  const activePointIds = useMemo(() => new Set(activePoints.map((point) => point.id)), [activePoints])
+  /**
+   * Quem fica em destaque: durante o desenho, os clientes que a forma provisória já pega —
+   * assim o raio (ou o polígono) é escolhido vendo a carteira que ele captura, não depois.
+   * Fora do desenho, quem manda é a área selecionada.
+   */
+  const highlightedPoints = draftGeometry ? draftPoints : activePoints
+  const hasHighlight = draftGeometry !== null || activeArea !== null
+
+  const highlightedIds = useMemo(
+    () => new Set(highlightedPoints.map((point) => point.id)),
+    [highlightedPoints],
+  )
 
   // Paradas da rota já são desenhadas numeradas pelo RouteOverlay — o pino padrão
   // delas ficaria empilhado por baixo.
@@ -258,10 +269,10 @@ const MapComponent = () => {
           if (routeStopIds.has(point.id) || gpsHiddenIds.has(point.id)) return null
 
           const isSelected = selectedPoint?.id === point.id
-          const isOutsideActiveArea = activeArea !== null && !activePointIds.has(point.id)
+          const isOutsideHighlight = hasHighlight && !highlightedIds.has(point.id)
           const icon = isSelected
             ? markerIcons.selected
-            : isOutsideActiveArea
+            : isOutsideHighlight
               ? markerIcons.muted
               : markerIcons.default
 

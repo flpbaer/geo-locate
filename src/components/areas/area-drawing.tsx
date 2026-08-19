@@ -1,7 +1,7 @@
 "use client"
 
 import { Circle, Marker, Polygon, Polyline, useGoogleMap } from "@react-google-maps/api"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 
 import { useAreas } from "@/components/areas/areas-provider"
 import { distanceInMeters } from "@/lib/geo"
@@ -49,19 +49,35 @@ function isTypingTarget(target: EventTarget | null): boolean {
  * descontinuada em ago/2025, indisponível desde mai/2026). `Circle` e `Polygon` são
  * overlays do core e seguem valendo — só a captura do gesto precisou ser reescrita.
  *
- * Os pontos marcados vivem no AreasProvider, para que a toolbar possa desfazer e
- * concluir; aqui fica só o cursor, que muda a cada mousemove e não deve propagar.
+ * Os pontos marcados e o cursor vivem no AreasProvider: a toolbar precisa deles para
+ * desfazer/concluir e para contar, e o mapa para destacar os clientes que a forma já pega.
  */
 export function AreaDrawing() {
   const map = useGoogleMap()
-  const { draft, draftStyle, addDraftPoint, undoDraftPoint, finishDraft, cancelDrawing } = useAreas()
-
-  const [cursor, setCursor] = useState<LatLng | null>(null)
+  const {
+    draft,
+    draftCursor,
+    setDraftCursor,
+    draftGeometry,
+    draftStyle,
+    addDraftPoint,
+    undoDraftPoint,
+    finishDraft,
+    cancelDrawing,
+  } = useAreas()
 
   // Os listeners são anexados uma única vez; o ref dá acesso ao estado mais recente
   // sem reanexar a cada ponto marcado.
   const latest = useRef({ draft, addDraftPoint, undoDraftPoint, finishDraft, cancelDrawing })
   latest.current = { draft, addDraftPoint, undoDraftPoint, finishDraft, cancelDrawing }
+
+  /**
+   * O cursor sai daqui para o provider, e de lá o destaque dos clientes é recalculado —
+   * mousemove dispara várias vezes por frame, então cada posição espera o próximo frame
+   * em vez de arrastar a base inteira atrás de si.
+   */
+  const pendingCursor = useRef<LatLng | null>(null)
+  const cursorFrame = useRef<number | null>(null)
 
   // Cursor de precisão, e sem zoom no duplo clique — que atrapalharia marcar vértices.
   useEffect(() => {
@@ -96,7 +112,15 @@ export function AreaDrawing() {
 
     const handleMouseMove = (event: google.maps.MapMouseEvent) => {
       const point = toLatLng(event)
-      if (point) setCursor(point)
+      if (!point) return
+
+      pendingCursor.current = point
+      if (cursorFrame.current !== null) return
+
+      cursorFrame.current = requestAnimationFrame(() => {
+        cursorFrame.current = null
+        if (pendingCursor.current) setDraftCursor(pendingCursor.current)
+      })
     }
 
     const listeners = [
@@ -104,8 +128,12 @@ export function AreaDrawing() {
       map.addListener("mousemove", handleMouseMove),
     ]
 
-    return () => listeners.forEach((listener) => listener.remove())
-  }, [map])
+    return () => {
+      listeners.forEach((listener) => listener.remove())
+      if (cursorFrame.current !== null) cancelAnimationFrame(cursorFrame.current)
+      cursorFrame.current = null
+    }
+  }, [map, setDraftCursor])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -138,12 +166,16 @@ export function AreaDrawing() {
   if (draft.kind === "circle") {
     if (!draft.center) return null
 
-    const radius = cursor ? distanceInMeters(draft.center, cursor) : 0
-
     return (
       <>
         <Marker position={draft.center} options={passthroughMarker} />
-        {radius > 0 && <Circle center={draft.center} radius={radius} options={previewOptions(draftStyle)} />}
+        {draftGeometry?.kind === "circle" && (
+          <Circle
+            center={draftGeometry.center}
+            radius={draftGeometry.radius}
+            options={previewOptions(draftStyle)}
+          />
+        )}
       </>
     )
   }
@@ -152,7 +184,7 @@ export function AreaDrawing() {
 
   // Com menos de 3 vértices só a linha faz sentido; depois o preenchimento mostra a
   // área que será criada.
-  const trail = cursor ? [...draft.vertices, cursor] : draft.vertices
+  const trail = draftCursor ? [...draft.vertices, draftCursor] : draft.vertices
 
   return (
     <>
