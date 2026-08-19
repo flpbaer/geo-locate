@@ -31,6 +31,11 @@ export interface RadialAction {
   icon: LucideIcon
   /** Realça a fatia — usado quando a ação já está em curso (desenho em andamento). */
   isActive?: boolean
+  /**
+   * Fatia inerte. Fica na roda, apagada: sumir mudaria a geometria do disco a cada
+   * mudança de estado, e o `hint` no miolo é o lugar de dizer o que falta para liberá-la.
+   */
+  disabled?: boolean
   onSelect: () => void
 }
 
@@ -86,8 +91,11 @@ export function RadialMenu({ open, onClose, actions, title }: RadialMenuProps) {
   latest.current = { actions, onClose }
 
   const select = useCallback((index: number) => {
+    const action = latest.current.actions[index]
+    if (!action || action.disabled) return
+
     latest.current.onClose()
-    latest.current.actions[index]?.onSelect()
+    action.onSelect()
   }, [])
 
   useEffect(() => {
@@ -228,13 +236,19 @@ export function RadialMenu({ open, onClose, actions, title }: RadialMenuProps) {
                     key={action.id}
                     d={wedgePath(center - span / 2 + WEDGE_GAP / 2, center + span / 2 - WEDGE_GAP / 2)}
                     fill={
-                      isActive
-                        ? "rgba(56,132,255,0.22)"
-                        : action.isActive
-                          ? "rgba(255,255,255,0.14)"
-                          : "rgba(255,255,255,0.05)"
+                      action.disabled
+                        ? "rgba(255,255,255,0.02)"
+                        : isActive
+                          ? "rgba(56,132,255,0.22)"
+                          : action.isActive
+                            ? "rgba(255,255,255,0.14)"
+                            : "rgba(255,255,255,0.05)"
                     }
-                    stroke={isActive ? "rgba(120,175,255,0.75)" : "rgba(255,255,255,0.09)"}
+                    stroke={
+                      isActive && !action.disabled
+                        ? "rgba(120,175,255,0.75)"
+                        : "rgba(255,255,255,0.09)"
+                    }
                     strokeWidth="0.5"
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -249,7 +263,7 @@ export function RadialMenu({ open, onClose, actions, title }: RadialMenuProps) {
               aria-hidden
               className="pointer-events-none absolute inset-0 rounded-full"
               style={{ background: needle, maskImage: ring, WebkitMaskImage: ring }}
-              animate={{ rotate: needleAngle.current, opacity: activeIndex === null ? 0 : 1 }}
+              animate={{ rotate: needleAngle.current, opacity: active && !active.disabled ? 1 : 0 }}
               transition={{ type: "spring", stiffness: 340, damping: 26 }}
             />
 
@@ -263,10 +277,14 @@ export function RadialMenu({ open, onClose, actions, title }: RadialMenuProps) {
                   type="button"
                   role="menuitem"
                   title={action.hint}
+                  aria-disabled={action.disabled}
                   className={cn(
-                    "absolute flex w-[27%] -translate-x-1/2 -translate-y-1/2 cursor-pointer flex-col items-center gap-1 rounded-xl px-1 py-1.5 text-center transition-colors",
-                    "text-white/70 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70",
-                    index === activeIndex && "text-white",
+                    "absolute flex w-[27%] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 rounded-xl px-1 py-1.5 text-center transition-colors",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70",
+                    action.disabled
+                      ? "cursor-not-allowed text-white/30"
+                      : "cursor-pointer text-white/70 hover:text-white",
+                    !action.disabled && index === activeIndex && "text-white",
                   )}
                   style={{ left: `${position.x}%`, top: `${position.y}%` }}
                   onPointerEnter={() => setActiveIndex(index)}

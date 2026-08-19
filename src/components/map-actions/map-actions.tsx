@@ -41,21 +41,26 @@ export function MapActions() {
 
   const toggleMenu = () => setIsMenuOpen((current) => !current)
 
+  const hasPoints = points.length > 0
+  const noBaseHint = "Importe clientes primeiro — área sem base não mostra nada"
+
   const actions: RadialAction[] = [
     {
       id: "circle",
       label: "Raio",
-      hint: "Um clique marca o centro, o outro fixa o raio",
+      hint: hasPoints ? "Um clique marca o centro, o outro fixa o raio" : noBaseHint,
       icon: CircleIcon,
       isActive: drawingKind === "circle",
+      disabled: !hasPoints,
       onSelect: () => startDrawing("circle"),
     },
     {
       id: "polygon",
       label: "Polígono",
-      hint: "Marque os vértices do território",
+      hint: hasPoints ? "Marque os vértices do território" : noBaseHint,
       icon: Hexagon,
       isActive: drawingKind === "polygon",
+      disabled: !hasPoints,
       onSelect: () => startDrawing("polygon"),
     },
     {
@@ -69,7 +74,7 @@ export function MapActions() {
 
   // Limpar antes de importar: o CSV novo já substitui a base, mas quem quer só esvaziar
   // o mapa não precisa passar pelo import para isso.
-  if (points.length > 0) {
+  if (hasPoints) {
     actions.push({
       id: "clear",
       label: "Limpar clientes",
@@ -80,7 +85,7 @@ export function MapActions() {
   }
 
   // O painel de áreas fica minimizado por padrão; esta é a porta de volta para ele.
-  if (areas.length > 0 || drawingKind) {
+  if (hasPoints && (areas.length > 0 || drawingKind)) {
     actions.push({
       id: "areas",
       label: "Áreas",
