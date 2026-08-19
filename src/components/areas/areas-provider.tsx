@@ -7,10 +7,12 @@ import { useMapPoints } from "@/components/map-points-provider"
 import { nextStyle, resolveAreaStyle } from "@/lib/area-style"
 import { useStoredAreas } from "@/lib/areas-store"
 import * as drawing from "@/lib/drawing-draft"
+import { distanceInMeters } from "@/lib/geo"
 import { solveRoute, type Route } from "@/lib/route"
 import type {
   Area,
   AreaDraft,
+  AreaGeometry,
   AreaKind,
   AreaPatch,
   AreaRouteSettings,
@@ -45,6 +47,16 @@ interface AreasContextType {
   drawingKind: AreaKind | null
   /** Pontos já marcados no desenho em andamento. */
   draft: DrawingDraft | null
+  /** Onde o cursor está no mapa durante o desenho — é o que fecha a forma provisória. */
+  draftCursor: LatLng | null
+  setDraftCursor: (cursor: LatLng | null) => void
+  /**
+   * A forma que o desenho já tem: o círculo até o cursor, ou o polígono fechado nele.
+   * Null enquanto não há forma nenhuma (círculo sem centro, polígono com 1 ou 2 vértices).
+   */
+  draftGeometry: AreaGeometry | null
+  /** Clientes que o desenho já pegaria se fosse concluído agora. */
+  draftPoints: Point[]
   startDrawing: (kind: AreaKind) => void
   cancelDrawing: () => void
   /** Registra um clique do mapa no desenho; o último ponto conclui a área. */
@@ -93,6 +105,7 @@ export function AreasProvider({ children }: { children: React.ReactNode }) {
 
   const [activeAreaId, setActiveAreaId] = useState<string | null>(null)
   const [draft, setDraft] = useState<DrawingDraft | null>(null)
+  const [draftCursor, setDraftCursor] = useState<LatLng | null>(null)
   const [isAreasPanelOpen, setIsAreasPanelOpen] = useState(false)
 
   const activeArea = useMemo(
@@ -103,7 +116,10 @@ export function AreasProvider({ children }: { children: React.ReactNode }) {
   // Limpar a base no meio de um desenho deixaria um rascunho que ninguém pode concluir:
   // sem cliente, criar área está fora do ar.
   useEffect(() => {
-    if (points.length === 0) setDraft(null)
+    if (points.length === 0) {
+      setDraft(null)
+      setDraftCursor(null)
+    }
   }, [points.length])
 
   const areaCounts = useMemo(() => areasUseCase.countByArea(points, areas), [points, areas])
@@ -118,6 +134,33 @@ export function AreasProvider({ children }: { children: React.ReactNode }) {
     [activePoints, activeArea, points.length],
   )
 
+  /**
+   * A forma provisória: o que a área seria se o desenho fosse concluído neste instante.
+   * O cursor entra nela — é o que faz o raio crescer e o polígono fechar antes do clique.
+   */
+  const draftGeometry = useMemo<AreaGeometry | null>(() => {
+    if (!draft) return null
+
+    if (draft.kind === "circle") {
+      if (!draft.center || !draftCursor) return null
+
+      const radius = distanceInMeters(draft.center, draftCursor)
+      return radius > 0 ? { kind: "circle", center: draft.center, radius } : null
+    }
+
+    const path = draftCursor ? [...draft.vertices, draftCursor] : draft.vertices
+    return path.length >= drawing.MIN_POLYGON_VERTICES ? { kind: "polygon", path } : null
+  }, [draft, draftCursor])
+
+  /**
+   * Quem a área em desenho já pegaria. Sai no mapa em destaque e na contagem da toolbar:
+   * escolher o raio no escuro e só depois ver o número era o passo que faltava.
+   */
+  const draftPoints = useMemo(
+    () => (draftGeometry ? areasUseCase.pointsInArea(points, draftGeometry) : []),
+    [points, draftGeometry],
+  )
+
   // Novas áreas já nascem com cor própria, para se distinguirem das existentes.
   const draftStyle = useMemo(
     () => nextStyle(areas.map((area) => resolveAreaStyle(area).strokeColor)),
@@ -129,6 +172,7 @@ export function AreasProvider({ children }: { children: React.ReactNode }) {
       const created = addArea({ style: draftStyle, ...area })
       setActiveAreaId(created.id)
       setDraft(null)
+      setDraftCursor(null)
       setIsAreasPanelOpen(true)
       return created
     },
@@ -138,10 +182,16 @@ export function AreasProvider({ children }: { children: React.ReactNode }) {
   // Desenhar precisa do painel: é lá que fica o passo a passo e o desfazer.
   const startDrawing = useCallback((kind: AreaKind) => {
     setDraft(drawing.startDraft(kind))
+    // Zera o cursor do desenho anterior: senão a forma nova nasceria com a última
+    // posição conhecida e o preview piscaria errado até o primeiro movimento.
+    setDraftCursor(null)
     setIsAreasPanelOpen(true)
   }, [])
 
-  const cancelDrawing = useCallback(() => setDraft(null), [])
+  const cancelDrawing = useCallback(() => {
+    setDraft(null)
+    setDraftCursor(null)
+  }, [])
 
   const addDraftPoint = useCallback(
     (point: LatLng) => {
@@ -251,6 +301,10 @@ export function AreasProvider({ children }: { children: React.ReactNode }) {
     activeInsights,
     drawingKind: draft?.kind ?? null,
     draft,
+    draftCursor,
+    setDraftCursor,
+    draftGeometry,
+    draftPoints,
     startDrawing,
     cancelDrawing,
     addDraftPoint,

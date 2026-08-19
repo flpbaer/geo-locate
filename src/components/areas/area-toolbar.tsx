@@ -29,6 +29,12 @@ function draftStatus(draft: DrawingDraft): string {
   return `${count} vértices — feche no primeiro ponto ou aperte Enter.`
 }
 
+/** O número que decide o raio: quantos clientes a forma provisória já pega. */
+function draftCapture(count: number): string {
+  if (count === 0) return "Nenhum cliente dentro do traçado até aqui."
+  return `${formatNumber(count)} cliente(s) dentro — em destaque no mapa.`
+}
+
 /**
  * Lista de áreas e painel da área ativa.
  *
@@ -41,6 +47,8 @@ export function AreaToolbar() {
     activeArea,
     areaCounts,
     draft,
+    draftGeometry,
+    draftPoints,
     cancelDrawing,
     undoDraftPoint,
     finishDraft,
@@ -82,6 +90,14 @@ export function AreaToolbar() {
                 </button>
               )}
             </div>
+
+            {/* Sem forma ainda (círculo sem raio, polígono com 2 vértices) não há o que
+                contar — a linha só aparece quando o número já significa alguma coisa. */}
+            {draftGeometry && (
+              <p className="mt-1.5 text-[11px] font-semibold leading-snug tabular-nums text-accent-foreground">
+                {draftCapture(draftPoints.length)}
+              </p>
+            )}
 
             <div className="mt-2 flex items-center gap-1.5">
               <Button
